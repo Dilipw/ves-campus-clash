@@ -83,7 +83,6 @@ class GameSession extends Model
             if (blank($session->uuid)) {
                 $session->uuid = (string) Str::uuid();
             }
-
         });
     }
 
@@ -157,5 +156,29 @@ class GameSession extends Model
 
             default => 'Unknown',
         };
+    }
+
+    public function scopeRegistered($query)
+    {
+        return $query->where(
+            'status',
+            self::STATUS_REGISTERED
+        );
+    }
+
+    public function scopePlaying($query)
+    {
+        return $query->where(
+            'status',
+            self::STATUS_PLAYING
+        );
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where(
+            'status',
+            self::STATUS_COMPLETED
+        );
     }
 }

@@ -15,12 +15,13 @@ class GameLog extends Model
     |--------------------------------------------------------------------------
     */
 
-    public const GAME_STARTED      = 1;
-    public const LEVEL_COMPLETED   = 2;
-    public const POWER_UP          = 3;
-    public const GAME_COMPLETED    = 4;
-    public const SESSION_EXPIRED   = 5;
-    public const SESSION_ABANDONED = 6;
+    public const EVENT_GAME_STARTED    = 1;
+    public const EVENT_LEVEL_COMPLETED = 2;
+    public const EVENT_MATCH_FOUND     = 3;
+    public const EVENT_MISMATCH        = 4;
+    public const EVENT_GAME_COMPLETED  = 5;
+    public const EVENT_GAME_EXPIRED    = 6;
+    public const EVENT_GAME_ABANDONED  = 7;
 
     /*
     |--------------------------------------------------------------------------
@@ -43,14 +44,43 @@ class GameLog extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Casts
+    | Attribute Casting
     |--------------------------------------------------------------------------
     */
 
     protected $casts = [
-        'metadata'   => 'array',
-        'logged_at'  => 'datetime',
+
+        'event_type'     => 'integer',
+        'level'          => 'integer',
+        'score'          => 'integer',
+        'moves'          => 'integer',
+        'matched_pairs'  => 'integer',
+        'remaining_time' => 'integer',
+
+        'metadata'       => 'array',
+
+        'logged_at'      => 'datetime',
+
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Boot Method
+    |--------------------------------------------------------------------------
+    */
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($log) {
+
+            if (blank($log->logged_at)) {
+                $log->logged_at = now();
+            }
+
+        });
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -65,7 +95,28 @@ class GameLog extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Accessor
+    | Helper Methods
+    |--------------------------------------------------------------------------
+    */
+
+    public function isGameStarted(): bool
+    {
+        return $this->event_type === self::EVENT_GAME_STARTED;
+    }
+
+    public function isLevelCompleted(): bool
+    {
+        return $this->event_type === self::EVENT_LEVEL_COMPLETED;
+    }
+
+    public function isGameCompleted(): bool
+    {
+        return $this->event_type === self::EVENT_GAME_COMPLETED;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accessors
     |--------------------------------------------------------------------------
     */
 
@@ -73,14 +124,22 @@ class GameLog extends Model
     {
         return match ($this->event_type) {
 
-            self::GAME_STARTED      => 'Game Started',
-            self::LEVEL_COMPLETED   => 'Level Completed',
-            self::POWER_UP          => 'Power Up',
-            self::GAME_COMPLETED    => 'Game Completed',
-            self::SESSION_EXPIRED   => 'Session Expired',
-            self::SESSION_ABANDONED => 'Session Abandoned',
+            self::EVENT_GAME_STARTED    => 'Game Started',
+
+            self::EVENT_LEVEL_COMPLETED => 'Level Completed',
+
+            self::EVENT_MATCH_FOUND     => 'Match Found',
+
+            self::EVENT_MISMATCH        => 'Mismatch',
+
+            self::EVENT_GAME_COMPLETED  => 'Game Completed',
+
+            self::EVENT_GAME_EXPIRED    => 'Game Expired',
+
+            self::EVENT_GAME_ABANDONED  => 'Game Abandoned',
 
             default => 'Unknown',
+
         };
     }
 }
