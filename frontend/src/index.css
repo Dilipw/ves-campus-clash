@@ -1,111 +1,82 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap");
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ============================================================
+   VES CAMPUS CLASH — BRAND TOKENS
+   Single source of truth. @theme turns these into real Tailwind
+   utilities: bg-ink, text-volt, font-display, rounded-ticket,
+   shadow-ticket, animate-pulse-dot — never hardcode a hex,
+   font-size, or radius in a component.
+   ============================================================ */
+@theme {
+  /* ---------- Color ---------- */
+  --color-ink: #101018;           /* app background */
+  --color-ink-soft: #1b1c29;      /* raised surfaces on dark */
+  --color-ink-line: #2a2b3a;      /* hairlines / dividers on dark */
+  --color-paper: #f6f1e7;         /* the "ticket" surface — warm, not stark white */
+  --color-paper-line: #ded5c2;    /* dividers on paper */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-volt: #d6ff3f;          /* primary game accent (levels, progress, score) */
+  --color-volt-dim: #a9cc32;      /* volt text-on-paper (AA safe) */
+  --color-punch: #ff4368;         /* CTA / energy accent */
+  --color-punch-dim: #e23057;
+  --color-signal: #5fa8ff;        /* links, focus rings only */
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  --color-text-hi: #f3f2ee;       /* primary text on dark */
+  --color-text-lo: #90909f;       /* muted text on dark */
+  --color-paper-hi: #1b1710;      /* primary text on paper */
+  --color-paper-lo: #6b6455;      /* muted text on paper */
+
+  /* ---------- Type ---------- */
+  --font-display: "Space Grotesk", "Arial Black", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --text-display-xl: clamp(2.75rem, 1.2rem + 6vw, 5.25rem);
+  --text-display-lg: clamp(2rem, 1.2rem + 3.2vw, 3.25rem);
+  --text-h2: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+  --text-h3: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  --text-body-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --text-body: clamp(0.9375rem, 0.9rem + 0.15vw, 1.0625rem);
+  --text-small: clamp(0.8rem, 0.78rem + 0.1vw, 0.875rem);
+  --text-mono: clamp(0.8125rem, 0.8rem + 0.1vw, 0.9375rem);
+
+  /* ---------- Shape / Elevation ---------- */
+  --radius-card: 20px;
+  --radius-ticket: 28px;
+  --radius-pill: 999px;
+
+  --shadow-ticket: 0 40px 70px -30px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 12px 30px -14px rgba(0, 0, 0, 0.4);
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+  --animate-ticket-in: ticket-in 700ms var(--ease-out) both;
+  --animate-rail-fill: rail-fill 900ms var(--ease-out) both;
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  @keyframes ticket-in {
+    0% { opacity: 0; transform: translateY(28px) rotate(-3deg); }
+    100% { opacity: 1; transform: translateY(0) rotate(-2deg); }
+  }
+  @keyframes rail-fill {
+    0% { transform: scaleX(0); }
+    100% { transform: scaleX(1); }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

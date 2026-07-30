@@ -1,0 +1,65 @@
+/* ============================================================
+   VES CAMPUS CLASH — BRAND TOKENS
+   Single source of truth. Every component pulls from here —
+   never hardcode a hex, font-size, or radius in a component.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap");
+
+:root {
+  /* ---------- Color ---------- */
+  --ink: #101018;           /* app background */
+  --ink-soft: #1b1c29;      /* raised surfaces on dark */
+  --ink-line: #2a2b3a;      /* hairlines / dividers on dark */
+  --paper: #f6f1e7;         /* the "ticket" surface — warm, not stark white */
+  --paper-line: #ded5c2;    /* dividers on paper */
+
+  --volt: #d6ff3f;          /* primary game accent (levels, progress, score) */
+  --volt-dim: #a9cc32;      /* volt text-on-paper (AA safe) */
+  --punch: #ff4368;         /* CTA / energy accent */
+  --punch-dim: #e23057;
+  --signal: #5fa8ff;        /* links, focus rings only */
+
+  --text-hi: #f3f2ee;       /* primary text on dark */
+  --text-lo: #90909f;       /* muted text on dark */
+  --paper-text-hi: #1b1710; /* primary text on paper */
+  --paper-text-lo: #6b6455; /* muted text on paper */
+
+  /* ---------- Type ---------- */
+  --font-display: "Space Grotesk", "Arial Black", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --fs-display-xl: clamp(2.75rem, 1.2rem + 6vw, 5.25rem);
+  --fs-display-lg: clamp(2rem, 1.2rem + 3.2vw, 3.25rem);
+  --fs-h2: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+  --fs-h3: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  --fs-body-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --fs-body: clamp(0.9375rem, 0.9rem + 0.15vw, 1.0625rem);
+  --fs-small: clamp(0.8rem, 0.78rem + 0.1vw, 0.875rem);
+  --fs-mono: clamp(0.8125rem, 0.8rem + 0.1vw, 0.9375rem);
+
+  /* ---------- Shape / Elevation ---------- */
+  --radius-card: 20px;
+  --radius-ticket: 28px;
+  --radius-pill: 999px;
+
+  --shadow-ticket: 0 40px 70px -30px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 12px 30px -14px rgba(0, 0, 0, 0.4);
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 180ms;
+  --dur-med: 420ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
