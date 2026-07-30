@@ -11,9 +11,7 @@ class GameResultService
     use ResolvesGameSession;
 
     /**
-     * Fetch the result/current state of a game session by UUID.
-     * Used by the frontend to recover gracefully after a page
-     * refresh, rather than relying on local/session storage.
+     * Get completed game result.
      *
      * @param string $gameSessionUuid
      * @return GameSession
@@ -22,6 +20,22 @@ class GameResultService
      */
     public function get(string $gameSessionUuid): GameSession
     {
-        return $this->findGameSession($gameSessionUuid);
+        $session = $this->findGameSession(
+            $gameSessionUuid
+        );
+
+        if (! $session->isCompleted()) {
+
+            throw new BusinessException(
+                'Game is not completed yet.',
+                422
+            );
+
+        }
+
+        return $session->load([
+            'participant',
+            'storyCard',
+        ]);
     }
 }
