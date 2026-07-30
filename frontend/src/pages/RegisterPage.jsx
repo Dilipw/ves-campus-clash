@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { participantApi } from "../services/api";
 import GameRulesModal from "../components/GameRulesModal";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [apiError, setApiError] = useState(null);
 
   const {
     register,
     handleSubmit,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -20,6 +23,7 @@ export default function RegisterPage() {
       course: "",
       academic_year: "",
       instagram_handle: "",
+      follow_confirmed: false,
       profile_photo: null,
     },
   });
@@ -33,28 +37,52 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data) => {
+    setApiError(null);
+
     try {
-      console.log("Submitting registration data:", data);
+      const formData = new FormData();
+      formData.append("full_name", data.full_name);
+      formData.append("institute", data.institute);
+      formData.append("course", data.course);
+      formData.append("academic_year", data.academic_year);
+      formData.append("instagram_handle", data.instagram_handle);
+      formData.append("follow_confirmed", data.follow_confirmed ? "1" : "0");
 
-      /*
-        Uncomment when connecting to your Laravel API:
+      if (data.profile_photo) {
+        formData.append("profile_photo", data.profile_photo);
+      }
 
-        const formData = new FormData();
-        formData.append("full_name", data.full_name);
-        formData.append("institute", data.institute);
-        formData.append("course", data.course);
-        formData.append("academic_year", data.academic_year);
-        formData.append("instagram_handle", data.instagram_handle);
-        if (data.profile_photo) {
-          formData.append("profile_photo", data.profile_photo);
-        }
+      // Call Laravel API
+      const response = await participantApi.register(formData);
+      
+      // Response structure from ApiResponse trait: response.data.data
+      const participantData = response.data?.data || response.data;
 
-        await participantApi.register(formData);
-      */
+      // Save participant details to LocalStorage for Game Session use
+      localStorage.setItem("participant", JSON.stringify(participantData));
 
+      console.log("Registered Participant:", participantData);
+
+      // Redirect student to the game route
       navigate("/game");
     } catch (error) {
       console.error("Registration error:", error);
+
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        
+        // Map Laravel validation errors to React Hook Form fields
+        Object.keys(validationErrors).forEach((field) => {
+          setError(field, {
+            type: "server",
+            message: validationErrors[field][0],
+          });
+        });
+      } else {
+        setApiError(
+          error.response?.data?.message || "Something went wrong. Please try again."
+        );
+      }
     }
   };
 
@@ -87,6 +115,13 @@ export default function RegisterPage() {
                 </h1>
               </header>
 
+              {/* Global API Error Alert */}
+              {apiError && (
+                <div className="mb-4 p-3 bg-punch/10 border border-punch rounded-card text-punch text-small font-mono">
+                  {apiError}
+                </div>
+              )}
+
               {/* Form */}
               <form id="registration-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
                 
@@ -100,7 +135,7 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       placeholder="e.g. Rahul Sharma"
-                      {...register("full_name", { required: "Full name is required" })}
+                      {...register("full_name", { required: "Full name is required." })}
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.full_name && (
@@ -150,7 +185,7 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       placeholder="e.g. VESIT"
-                      {...register("institute", { required: "Institute is required" })}
+                      {...register("institute", { required: "Institute is required." })}
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.institute && (
@@ -167,7 +202,7 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       placeholder="e.g. B.E. CS / B.Sc IT"
-                      {...register("course", { required: "Course is required" })}
+                      {...register("course", { required: "Course is required." })}
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.course && (
@@ -188,7 +223,7 @@ export default function RegisterPage() {
                     </label>
                     <div className="relative">
                       <select
-                        {...register("academic_year", { required: "Select year" })}
+                        {...register("academic_year", { required: "Academic year is required." })}
                         className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 pr-8 text-body text-paper-hi focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition appearance-none cursor-pointer"
                       >
                         <option value="">Select Year</option>
@@ -210,16 +245,44 @@ export default function RegisterPage() {
 
                   <div>
                     <label className="block font-display text-small uppercase tracking-wider mb-1 font-bold">
-                      Instagram Handle
+                      Instagram Handle <span className="text-punch">*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="@username"
-                      {...register("instagram_handle")}
+                      {...register("instagram_handle", {
+                        required: "Instagram username is required.",
+                      })}
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
+                    {errors.instagram_handle && (
+                      <p className="font-mono text-small text-punch mt-0.5">
+                        {errors.instagram_handle.message}
+                      </p>
+                    )}
                   </div>
 
+                </div>
+
+                {/* Row 4: Instagram Follow Confirmation Checkbox */}
+                <div className="pt-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      {...register("follow_confirmed", {
+                        required: "Please confirm that you followed the Instagram page.",
+                      })}
+                      className="mt-0.5 h-4 w-4 rounded border-paper-line text-punch focus:ring-punch cursor-pointer shrink-0"
+                    />
+                    <span className="text-small text-paper-hi font-body leading-tight">
+                      I confirm that I follow the official <strong>@ves_campus_clash</strong> Instagram page. <span className="text-punch">*</span>
+                    </span>
+                  </label>
+                  {errors.follow_confirmed && (
+                    <p className="font-mono text-small text-punch mt-1">
+                      {errors.follow_confirmed.message}
+                    </p>
+                  )}
                 </div>
 
               </form>
@@ -232,14 +295,21 @@ export default function RegisterPage() {
               disabled={isSubmitting}
               className="w-full mt-4 bg-punch hover:bg-punch-dim disabled:opacity-50 text-text-hi rounded-pill py-3 font-display text-h3 tracking-wide uppercase transition-all transform active:scale-[0.98] shadow-soft cursor-pointer flex items-center justify-center gap-2"
             >
-              {isSubmitting ? "Processing..." : "Continue to Game →"}
+              {isSubmitting ? (
+                <>
+                  <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                "Continue to Game →"
+              )}
             </button>
 
           </div>
 
         </div>
 
-        {/* Compact Game Highlights Sidebar (Left on Desktop, Bottom on Mobile) */}
+        {/* Compact Game Highlights Sidebar */}
         <div className="lg:col-span-5 order-2 lg:order-1 w-full flex">
           
           <div className="bg-ink-soft border border-ink-line rounded-card p-4 sm:p-5 flex flex-col justify-between w-full">
@@ -314,7 +384,7 @@ export default function RegisterPage() {
 
       </div>
 
-      {/* Render Modal Component */}
+      {/* Render Rules Modal */}
       <GameRulesModal 
         isOpen={isRulesOpen} 
         onClose={() => setIsRulesOpen(false)} 

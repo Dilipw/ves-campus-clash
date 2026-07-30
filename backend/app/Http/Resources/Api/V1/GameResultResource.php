@@ -39,7 +39,7 @@ class GameResultResource extends JsonResource
 
                 'full_name' => $this->participant->full_name,
 
-                'profile_photo' => $this->participant->profile_photo_path,
+                'profile_photo' => $this->participant->profile_photo,
 
                 'instagram_handle' => $this->participant->instagram_handle,
 

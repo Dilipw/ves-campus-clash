@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Participant extends Model
 {
@@ -21,7 +23,7 @@ class Participant extends Model
     protected $fillable = [
         'uuid',
         'full_name',
-        'profile_photo_path',
+        'profile_photo',
         'instagram_handle',
         'institute',
         'course',
@@ -69,11 +71,15 @@ class Participant extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function gameSessions()
+    public function gameSessions(): HasMany
     {
         return $this->hasMany(GameSession::class);
     }
 
+    public function gameSession(): HasOne
+    {
+        return $this->hasOne(GameSession::class)->latestOfMany();
+    }
     public function storyCards()
     {
         return $this->hasMany(StoryCard::class);

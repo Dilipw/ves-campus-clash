@@ -165,7 +165,7 @@ class ParticipantService
 
             'full_name'            => $data['full_name'],
 
-            'profile_photo_path'   => $profilePhoto,
+            'profile_photo'   => $profilePhoto,
 
             'instagram_handle'     => strtolower($data['instagram_handle']),
 

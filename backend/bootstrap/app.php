@@ -1,6 +1,5 @@
 <?php
 
-use Throwable;
 use Illuminate\Http\Request;
 use App\Exceptions\BusinessException;
 use Illuminate\Foundation\Application;
@@ -19,11 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
 
+        // Handle Business Exceptions
         $exceptions->render(function (
             BusinessException $exception,
             Request $request
         ) {
-
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -34,11 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $exception->getStatus());
         });
 
+        // Handle All Other Exceptions
         $exceptions->render(function (
-            Throwable $exception,
+            \Throwable $exception,
             Request $request
         ) {
-
             if (! $request->is('api/*')) {
                 return null;
             }

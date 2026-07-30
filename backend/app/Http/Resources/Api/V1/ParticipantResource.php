@@ -18,8 +18,8 @@ class ParticipantResource extends JsonResource
 
             'full_name' => $this->full_name,
 
-            'profile_photo' => $this->profile_photo_path
-                ? asset('storage/'.$this->profile_photo_path)
+            'profile_photo' => $this->profile_photo
+                ? asset('storage/'.$this->profile_photo)
                 : null,
 
             'instagram_handle' => '@'.$this->instagram_handle,

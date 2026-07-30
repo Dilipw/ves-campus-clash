@@ -30,7 +30,7 @@ class ParticipantController extends Controller
             $request->validated()
         );
 
-        $participant->load('latestGameSession');
+        $participant->load('gameSession');
 
         return $this->successResponse(
             new ParticipantResource($participant),
