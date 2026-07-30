@@ -16,20 +16,11 @@ class GameController extends Controller
 {
     use ApiResponse;
 
-    /**
-     * Create a new controller instance.
-     */
     public function __construct(
         protected GameService $gameService
     ) {
     }
 
-    /**
-     * Start a new game session.
-     *
-     * @param StartGameRequest $request
-     * @return JsonResponse
-     */
     public function start(StartGameRequest $request): JsonResponse
     {
         $session = $this->gameService->start(
@@ -42,12 +33,6 @@ class GameController extends Controller
         );
     }
 
-    /**
-     * Save game progress.
-     *
-     * @param UpdateGameProgressRequest $request
-     * @return JsonResponse
-     */
     public function progress(
         UpdateGameProgressRequest $request
     ): JsonResponse {
@@ -62,12 +47,6 @@ class GameController extends Controller
         );
     }
 
-    /**
-     * Complete the game.
-     *
-     * @param CompleteGameRequest $request
-     * @return JsonResponse
-     */
     public function complete(
         CompleteGameRequest $request
     ): JsonResponse {
@@ -82,12 +61,6 @@ class GameController extends Controller
         );
     }
 
-    /**
-     * Get game result.
-     *
-     * @param string $gameSessionUuid
-     * @return JsonResponse
-     */
     public function result(
         string $gameSessionUuid
     ): JsonResponse {
@@ -100,5 +73,27 @@ class GameController extends Controller
             new GameResultResource($session),
             'Game result fetched successfully.'
         );
+    }
+
+    /**
+     * Lightweight status check used by the frontend route guard.
+     * Intentionally returns only uuid + status — no score, no answers,
+     * so it's safe to call before a session is completed.
+     *
+     * @param string $gameSessionUuid
+     * @return JsonResponse
+     */
+    public function status(
+        string $gameSessionUuid
+    ): JsonResponse {
+
+        $session = $this->gameService->findByUuid(
+            $gameSessionUuid
+        );
+
+        return $this->successResponse([
+            'uuid'   => $session->uuid,
+            'status' => $session->status_label,
+        ], 'Game session status fetched successfully.');
     }
 }

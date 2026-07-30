@@ -78,4 +78,9 @@ class GameService
     {
         return $this->resultService->get($gameSessionUuid);
     }
+    public function findByUuid(string $uuid): GameSession
+    {
+        return GameSession::where('uuid', $uuid)
+            ->firstOrFail();
+    }
 }

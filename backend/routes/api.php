@@ -11,7 +11,6 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/register', [ParticipantController::class, 'register'])
             ->name('participants.register');
-            
     });
     Route::prefix('game')->group(function () {
         Route::post('/start', [GameController::class, 'start'])
@@ -25,5 +24,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/result/{gameSessionUuid}', [GameController::class, 'result'])
             ->name('games.result');
+
+        Route::get('/session/{gameSessionUuid}/status', [GameController::class, 'status'])
+            ->name('games.status');
     });
 });
