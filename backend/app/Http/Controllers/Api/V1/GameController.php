@@ -7,6 +7,9 @@ use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Services\GameService;
 use App\Http\Requests\Api\V1\StartGameRequest;
+use App\Http\Requests\Api\V1\CompleteGameRequest;
+use App\Http\Requests\Api\V1\UpdateGameProgressRequest;
+use App\Http\Resources\Api\V1\GameResultResource;
 use App\Http\Resources\Api\V1\GameSessionResource;
 
 class GameController extends Controller
@@ -14,14 +17,18 @@ class GameController extends Controller
     use ApiResponse;
 
     /**
-     * Constructor.
+     * Create a new controller instance.
      */
     public function __construct(
         protected GameService $gameService
-    ) {}
+    ) {
+    }
 
     /**
-     * Start the game.
+     * Start a new game session.
+     *
+     * @param StartGameRequest $request
+     * @return JsonResponse
      */
     public function start(StartGameRequest $request): JsonResponse
     {
@@ -36,13 +43,55 @@ class GameController extends Controller
     }
 
     /**
+     * Save game progress.
+     *
+     * @param UpdateGameProgressRequest $request
+     * @return JsonResponse
+     */
+    public function progress(
+        UpdateGameProgressRequest $request
+    ): JsonResponse {
+
+        $session = $this->gameService->saveProgress(
+            $request->validated()
+        );
+
+        return $this->successResponse(
+            new GameSessionResource($session),
+            'Game progress saved successfully.'
+        );
+    }
+
+    /**
+     * Complete the game.
+     *
+     * @param CompleteGameRequest $request
+     * @return JsonResponse
+     */
+    public function complete(
+        CompleteGameRequest $request
+    ): JsonResponse {
+
+        $session = $this->gameService->complete(
+            $request->validated()
+        );
+
+        return $this->successResponse(
+            new GameResultResource($session),
+            'Game completed successfully.'
+        );
+    }
+
+    /**
      * Get game result.
      *
      * @param string $gameSessionUuid
      * @return JsonResponse
      */
-    public function result(string $gameSessionUuid): JsonResponse
-    {
+    public function result(
+        string $gameSessionUuid
+    ): JsonResponse {
+
         $session = $this->gameService->result(
             $gameSessionUuid
         );

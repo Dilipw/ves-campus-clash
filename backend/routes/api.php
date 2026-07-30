@@ -9,14 +9,21 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('participants')->group(function () {
 
-        Route::post('/register', [ParticipantController::class, 'register']);
+        Route::post('/register', [ParticipantController::class, 'register'])
+            ->name('participants.register');
+            
     });
     Route::prefix('game')->group(function () {
-        Route::post('/start', [GameController::class, 'start']);
-        Route::post('/progress', [GameController::class, 'progress']);
+        Route::post('/start', [GameController::class, 'start'])
+            ->name('games.start');
 
-        Route::post('/complete', [GameController::class, 'complete']);
+        Route::post('/progress', [GameController::class, 'progress'])
+            ->name('games.progress');
 
-        Route::get('/result/{gameSessionUuid}', [GameController::class, 'result']);
+        Route::post('/complete', [GameController::class, 'complete'])
+            ->name('games.complete');
+
+        Route::get('/result/{gameSessionUuid}', [GameController::class, 'result'])
+            ->name('games.result');
     });
 });

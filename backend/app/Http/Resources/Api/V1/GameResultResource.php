@@ -14,25 +14,74 @@ class GameResultResource extends JsonResource
     {
         return [
 
+            /*
+            |--------------------------------------------------------------------------
+            | Game Session
+            |--------------------------------------------------------------------------
+            */
+
             'game_session_uuid' => $this->uuid,
 
-            'participant_uuid' => $this->participant->uuid,
+            'status' => [
+                'id' => $this->status,
+                'label' => $this->status_label,
+            ],
 
-            'participant_name' => $this->participant->full_name,
+            /*
+            |--------------------------------------------------------------------------
+            | Participant
+            |--------------------------------------------------------------------------
+            */
 
-            'score' => $this->score,
+            'participant' => [
 
-            'moves' => $this->moves,
+                'uuid' => $this->participant->uuid,
 
-            'matched_pairs' => $this->matched_pairs,
+                'full_name' => $this->participant->full_name,
 
-            'time_taken' => $this->time_taken,
+                'profile_photo' => $this->participant->profile_photo_path,
 
-            'remaining_time' => $this->remaining_time,
+                'instagram_handle' => $this->participant->instagram_handle,
 
-            'completed_at' => $this->completed_at,
+            ],
 
-            'story_card_available' => true,
+            /*
+            |--------------------------------------------------------------------------
+            | Result
+            |--------------------------------------------------------------------------
+            */
+
+            'result' => [
+
+                'score' => $this->score,
+
+                'moves' => $this->moves,
+
+                'matched_pairs' => $this->matched_pairs,
+
+                'time_taken' => $this->time_taken,
+
+                'remaining_time' => $this->remaining_time,
+
+                'current_level' => $this->current_level,
+
+                'completed_at' => $this->completed_at,
+
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Story Card
+            |--------------------------------------------------------------------------
+            */
+
+            'story_card' => [
+
+                'available' => true,
+
+                'downloaded' => $this->storyCard?->downloaded_at !== null,
+
+            ],
 
         ];
     }
