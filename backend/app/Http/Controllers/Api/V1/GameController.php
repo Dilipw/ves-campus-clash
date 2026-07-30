@@ -18,8 +18,7 @@ class GameController extends Controller
      */
     public function __construct(
         protected GameService $gameService
-    ) {
-    }
+    ) {}
 
     /**
      * Start the game.
@@ -33,6 +32,24 @@ class GameController extends Controller
         return $this->successResponse(
             new GameSessionResource($session),
             'Game started successfully.'
+        );
+    }
+
+    /**
+     * Get game result.
+     *
+     * @param string $gameSessionUuid
+     * @return JsonResponse
+     */
+    public function result(string $gameSessionUuid): JsonResponse
+    {
+        $session = $this->gameService->result(
+            $gameSessionUuid
+        );
+
+        return $this->successResponse(
+            new GameResultResource($session),
+            'Game result fetched successfully.'
         );
     }
 }

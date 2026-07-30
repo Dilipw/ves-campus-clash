@@ -13,5 +13,10 @@ Route::prefix('v1')->group(function () {
     });
     Route::prefix('game')->group(function () {
         Route::post('/start', [GameController::class, 'start']);
+        Route::post('/progress', [GameController::class, 'progress']);
+
+        Route::post('/complete', [GameController::class, 'complete']);
+
+        Route::get('/result/{gameSessionUuid}', [GameController::class, 'result']);
     });
 });
