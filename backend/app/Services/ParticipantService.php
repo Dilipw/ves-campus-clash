@@ -259,4 +259,11 @@ class ParticipantService
 
         );
     }
+
+    private function normalizeInstagramHandle(string $handle): string
+    {
+        return strtolower(
+            ltrim(trim($handle), '@')
+        );
+    }
 }
