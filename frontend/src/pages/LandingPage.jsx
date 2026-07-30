@@ -8,11 +8,9 @@ import Footer from "../components/landing/Footer";
 export default function LandingPage() {
     return (
         <main className="min-h-screen bg-ink font-body">
-            <Navbar />
             <HeroSection />
             <HowItWorks />
             <FollowSection />
-            <Footer />
         </main>
     );
 }
