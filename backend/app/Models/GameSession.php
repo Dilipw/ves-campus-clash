@@ -13,16 +13,15 @@ class GameSession extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Status
+    | Status Constants
     |--------------------------------------------------------------------------
     */
 
-    public const STATUS_STARTED           = 1;
-    public const STATUS_LEVEL_1_COMPLETED = 2;
-    public const STATUS_LEVEL_2_COMPLETED = 3;
-    public const STATUS_COMPLETED         = 4;
-    public const STATUS_EXPIRED           = 5;
-    public const STATUS_ABANDONED         = 6;
+    public const STATUS_REGISTERED = 1;
+    public const STATUS_PLAYING    = 2;
+    public const STATUS_COMPLETED  = 3;
+    public const STATUS_EXPIRED    = 4;
+    public const STATUS_ABANDONED  = 5;
 
     /*
     |--------------------------------------------------------------------------
@@ -33,7 +32,6 @@ class GameSession extends Model
     protected $fillable = [
         'uuid',
         'participant_id',
-        'game_name',
         'current_level',
         'status',
         'score',
@@ -52,24 +50,27 @@ class GameSession extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Casts
+    | Attribute Casting
     |--------------------------------------------------------------------------
     */
 
     protected $casts = [
-        'started_at'   => 'datetime',
-        'completed_at' => 'datetime',
-        'expires_at'   => 'datetime',
-        'score'        => 'integer',
-        'moves'        => 'integer',
-        'matched_pairs'=> 'integer',
-        'current_level'=> 'integer',
-        'status'       => 'integer',
+        'current_level'  => 'integer',
+        'status'         => 'integer',
+        'score'          => 'integer',
+        'moves'          => 'integer',
+        'matched_pairs'  => 'integer',
+        'remaining_time' => 'integer',
+        'time_taken'     => 'integer',
+
+        'started_at'     => 'datetime',
+        'completed_at'   => 'datetime',
+        'expires_at'     => 'datetime',
     ];
 
     /*
     |--------------------------------------------------------------------------
-    | Boot
+    | Boot Method
     |--------------------------------------------------------------------------
     */
 
@@ -79,7 +80,7 @@ class GameSession extends Model
 
         static::creating(function ($session) {
 
-            if (empty($session->uuid)) {
+            if (blank($session->uuid)) {
                 $session->uuid = (string) Str::uuid();
             }
 
@@ -102,16 +103,26 @@ class GameSession extends Model
         return $this->hasMany(GameLog::class);
     }
 
-    public function storyCard()
+    public function storyCards()
     {
-        return $this->hasOne(StoryCard::class);
+        return $this->hasMany(StoryCard::class);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Helpers
+    | Helper Methods
     |--------------------------------------------------------------------------
     */
+
+    public function isRegistered(): bool
+    {
+        return $this->status === self::STATUS_REGISTERED;
+    }
+
+    public function isPlaying(): bool
+    {
+        return $this->status === self::STATUS_PLAYING;
+    }
 
     public function isCompleted(): bool
     {
@@ -130,7 +141,7 @@ class GameSession extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Status Label
+    | Accessors
     |--------------------------------------------------------------------------
     */
 
@@ -138,12 +149,11 @@ class GameSession extends Model
     {
         return match ($this->status) {
 
-            self::STATUS_STARTED           => 'Started',
-            self::STATUS_LEVEL_1_COMPLETED => 'Level 1 Completed',
-            self::STATUS_LEVEL_2_COMPLETED => 'Level 2 Completed',
-            self::STATUS_COMPLETED         => 'Completed',
-            self::STATUS_EXPIRED           => 'Expired',
-            self::STATUS_ABANDONED         => 'Abandoned',
+            self::STATUS_REGISTERED => 'Registered',
+            self::STATUS_PLAYING    => 'Playing',
+            self::STATUS_COMPLETED  => 'Completed',
+            self::STATUS_EXPIRED    => 'Expired',
+            self::STATUS_ABANDONED  => 'Abandoned',
 
             default => 'Unknown',
         };

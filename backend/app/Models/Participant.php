@@ -11,16 +11,6 @@ class Participant extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /*
-    |--------------------------------------------------------------------------
-    | Status Constants
-    |--------------------------------------------------------------------------
-    */
-
-    public const STATUS_REGISTERED      = 1;
-    public const STATUS_GAME_STARTED    = 2;
-    public const STATUS_GAME_COMPLETED  = 3;
-    public const STATUS_DISQUALIFIED    = 4;
 
     /*
     |--------------------------------------------------------------------------
@@ -38,7 +28,6 @@ class Participant extends Model
         'academic_year',
         'follow_confirmed',
         'registration_source',
-        'status',
         'registered_at',
     ];
 
@@ -51,7 +40,6 @@ class Participant extends Model
     protected $casts = [
         'follow_confirmed' => 'boolean',
         'registered_at'    => 'datetime',
-        'status'           => 'integer',
     ];
 
     /*
@@ -81,9 +69,9 @@ class Participant extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function gameSession()
+    public function gameSessions()
     {
-        return $this->hasOne(GameSession::class);
+        return $this->hasMany(GameSession::class);
     }
 
     public function storyCards()
@@ -94,48 +82,5 @@ class Participant extends Model
     public function activityLogs()
     {
         return $this->hasMany(ActivityLog::class);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Helper Methods
-    |--------------------------------------------------------------------------
-    */
-
-    public function isRegistered(): bool
-    {
-        return $this->status === self::STATUS_REGISTERED;
-    }
-
-    public function hasStartedGame(): bool
-    {
-        return $this->status === self::STATUS_GAME_STARTED;
-    }
-
-    public function hasCompletedGame(): bool
-    {
-        return $this->status === self::STATUS_GAME_COMPLETED;
-    }
-
-    public function isDisqualified(): bool
-    {
-        return $this->status === self::STATUS_DISQUALIFIED;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Status Label
-    |--------------------------------------------------------------------------
-    */
-
-    public function getStatusLabelAttribute(): string
-    {
-        return match ($this->status) {
-            self::STATUS_REGISTERED     => 'Registered',
-            self::STATUS_GAME_STARTED   => 'Game Started',
-            self::STATUS_GAME_COMPLETED => 'Game Completed',
-            self::STATUS_DISQUALIFIED   => 'Disqualified',
-            default                     => 'Unknown',
-        };
     }
 }

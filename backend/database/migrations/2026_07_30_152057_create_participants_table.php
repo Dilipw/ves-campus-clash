@@ -17,7 +17,7 @@ return new class extends Migration
             $table->uuid('uuid')->unique()->comment('Public unique identifier');
 
             $table->string('full_name', 150);
-            
+
             $table->string('profile_photo')->nullable()->comment('Participant profile photo');
 
             $table->string('instagram_handle', 100);
@@ -36,10 +36,6 @@ return new class extends Migration
                 ->nullable()
                 ->comment('QR, Direct, Campaign etc.');
 
-            $table->tinyInteger('status')
-                ->default(1)
-                ->comment('1 = Registered, 2 = Game Completed, 3 = Disqualified');
-
             $table->timestamp('registered_at')
                 ->useCurrent();
 
@@ -48,7 +44,6 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index('instagram_handle');
-            $table->index('status');
         });
     }
 
