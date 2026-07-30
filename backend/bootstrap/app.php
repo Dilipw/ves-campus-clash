@@ -5,6 +5,7 @@ use App\Exceptions\BusinessException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +18,24 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
+
+        // Handle Validation Exceptions (must come before the generic
+        // Throwable catch-all, otherwise every validation failure
+        // gets reported as a 500 instead of a 422).
+        $exceptions->render(function (
+            ValidationException $exception,
+            Request $request
+        ) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+                'errors'  => $exception->errors(),
+            ], 422);
+        });
 
         // Handle Business Exceptions
         $exceptions->render(function (

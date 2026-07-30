@@ -102,6 +102,21 @@ class GameSession extends Model
         return $this->hasMany(GameLog::class);
     }
 
+    /**
+     * Single story card for this session. A player gets exactly
+     * one attempt and one card (GDD: "one shot, one score"), so
+     * hasOne matches the actual business rule.
+     */
+    public function storyCard()
+    {
+        return $this->hasOne(StoryCard::class);
+    }
+
+    /**
+     * Kept for any existing code (e.g. admin listings) that needs
+     * every story card row for this session, in case of retries
+     * or regenerations at the DB level.
+     */
     public function storyCards()
     {
         return $this->hasMany(StoryCard::class);

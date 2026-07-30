@@ -18,8 +18,7 @@ class GameController extends Controller
 
     public function __construct(
         protected GameService $gameService
-    ) {
-    }
+    ) {}
 
     public function start(StartGameRequest $request): JsonResponse
     {
@@ -83,17 +82,18 @@ class GameController extends Controller
      * @param string $gameSessionUuid
      * @return JsonResponse
      */
-    public function status(
-        string $gameSessionUuid
-    ): JsonResponse {
-
-        $session = $this->gameService->findByUuid(
-            $gameSessionUuid
-        );
+    public function status(string $gameSessionUuid): JsonResponse
+    {
+        $session = $this->gameService->findByUuid($gameSessionUuid);
 
         return $this->successResponse([
-            'uuid'   => $session->uuid,
-            'status' => $session->status_label,
+            'uuid'            => $session->uuid,
+            'status'          => $session->status_label,
+            'current_level'   => $session->current_level,
+            'matched_pairs'   => $session->matched_pairs,
+            'moves'           => $session->moves,
+            'remaining_time'  => $session->remaining_time,
+            'score'           => $session->score,
         ], 'Game session status fetched successfully.');
     }
 }

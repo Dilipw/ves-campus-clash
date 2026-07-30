@@ -18,32 +18,23 @@ export const participantApi = {
   },
 };
 
+export const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+
 export const gameApi = {
-  start: (participantUuid) => {
-    return API.post('/game/start', { participant_uuid: participantUuid });
-  },
+  start: (gameSessionUuid) =>
+    API.post('/game/start', { game_session_uuid: gameSessionUuid }),
 
-  progress: (gameSessionUuid, payload) => {
-    return API.post('/game/progress', {
-      game_session_uuid: gameSessionUuid,
-      ...payload,
-    });
-  },
+  progress: (gameSessionUuid, payload) =>
+    API.post('/game/progress', { game_session_uuid: gameSessionUuid, ...payload }),
 
-  complete: (gameSessionUuid, payload) => {
-    return API.post('/game/complete', {
-      game_session_uuid: gameSessionUuid,
-      ...payload,
-    });
-  },
+  complete: (gameSessionUuid, payload) =>
+    API.post('/game/complete', { game_session_uuid: gameSessionUuid, ...payload }),
 
-  result: (gameSessionUuid) => {
-    return API.get(`/game/result/${gameSessionUuid}`);
-  },
+  result: (gameSessionUuid) =>
+    API.get(`/game/result/${gameSessionUuid}`),
 
-  getStatus: (gameSessionUuid) => {
-    return API.get(`/game/session/${gameSessionUuid}/status`);
-  },
+  getStatus: (gameSessionUuid) =>
+    API.get(`/game/session/${gameSessionUuid}/status`),
 };
 
 export default API;

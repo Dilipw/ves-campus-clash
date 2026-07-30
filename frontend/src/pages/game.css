@@ -1,0 +1,91 @@
+.game-shell {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+  border: 1px solid rgba(224,169,64,0.25);
+  border-radius: 22px;
+  padding: 22px 20px 26px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+}
+
+.card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  perspective: 800px;
+  cursor: pointer;
+}
+
+.card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.38s cubic-bezier(.2,.8,.3,1.2);
+}
+
+.card.flipped .card-inner,
+.card.matched .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+}
+
+.card-back {
+  background: linear-gradient(145deg, #12224d 0%, #0d1b3d 55%, #081025 100%);
+  border: 1px solid rgba(224,169,64,0.35);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.card-back::after {
+  content: "VES";
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(224,169,64,0.75);
+}
+
+.card-back.power-up::before {
+  content: "⚡";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 11px;
+  filter: drop-shadow(0 0 4px rgba(244,198,97,0.8));
+  animation: pulsePower 1.2s infinite alternate;
+}
+
+@keyframes pulsePower {
+  from { transform: scale(0.9); }
+  to { transform: scale(1.2); }
+}
+
+.card-front {
+  background: linear-gradient(160deg, #1a2c5c, #0f1d40);
+  border: 1px solid rgba(224,169,64,0.5);
+  transform: rotateY(180deg);
+  font-size: 26px;
+  color: #f6efe0;
+}
+
+.card.matched .card-front {
+  background: linear-gradient(160deg, rgba(224,169,64,0.35), rgba(224,169,64,0.12));
+  border-color: #f4c661;
+  animation: matchPulse 0.5s ease;
+}
+
+@keyframes matchPulse {
+  0% { transform: rotateY(180deg) scale(1); }
+  50% { transform: rotateY(180deg) scale(1.08); }
+  100% { transform: rotateY(180deg) scale(1); }
+}
+
+@media (max-width: 380px) {
+  .card-front { font-size: 20px; }
+}

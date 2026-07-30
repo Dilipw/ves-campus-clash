@@ -21,9 +21,10 @@ class StartGameRequest extends FormRequest
     {
         return [
 
-            'participant_uuid' => [
+            'game_session_uuid' => [
                 'required',
                 'uuid',
+                'exists:game_sessions,uuid',
             ],
 
         ];
@@ -36,9 +37,11 @@ class StartGameRequest extends FormRequest
     {
         return [
 
-            'participant_uuid.required' => 'Participant ID is required.',
+            'game_session_uuid.required' => 'Game session ID is required.',
 
-            'participant_uuid.uuid' => 'Invalid participant ID.',
+            'game_session_uuid.uuid' => 'Invalid game session ID.',
+
+            'game_session_uuid.exists' => 'Game session not found.',
 
         ];
     }
@@ -48,12 +51,10 @@ class StartGameRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
-
-            'participant_uuid' => trim(
-                $this->participant_uuid
-            ),
-
-        ]);
+        if ($this->has('game_session_uuid')) {
+            $this->merge([
+                'game_session_uuid' => trim((string) $this->game_session_uuid),
+            ]);
+        }
     }
 }
