@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import GameRulesModal from "../components/GameRulesModal";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   const {
     register,
@@ -33,6 +35,23 @@ export default function RegisterPage() {
   const onSubmit = async (data) => {
     try {
       console.log("Submitting registration data:", data);
+
+      /*
+        Uncomment when connecting to your Laravel API:
+
+        const formData = new FormData();
+        formData.append("full_name", data.full_name);
+        formData.append("institute", data.institute);
+        formData.append("course", data.course);
+        formData.append("academic_year", data.academic_year);
+        formData.append("instagram_handle", data.instagram_handle);
+        if (data.profile_photo) {
+          formData.append("profile_photo", data.profile_photo);
+        }
+
+        await participantApi.register(formData);
+      */
+
       navigate("/game");
     } catch (error) {
       console.error("Registration error:", error);
@@ -267,6 +286,18 @@ export default function RegisterPage() {
                   <span>Get extra time with <strong>Power-Up pairs</strong>.</span>
                 </li>
               </ul>
+
+              {/* Trigger Link for Full Rules Modal */}
+              <div className="mt-3 pt-2 border-t border-ink-line/50">
+                <button
+                  type="button"
+                  onClick={() => setIsRulesOpen(true)}
+                  className="text-volt hover:text-white font-mono text-[12px] uppercase tracking-wider cursor-pointer flex items-center gap-1 transition"
+                >
+                  <span>View Full Rulebook & Scoring</span>
+                  <span>→</span>
+                </button>
+              </div>
             </div>
 
             {/* Compact Story Card Highlight */}
@@ -282,6 +313,12 @@ export default function RegisterPage() {
         </div>
 
       </div>
+
+      {/* Render Modal Component */}
+      <GameRulesModal 
+        isOpen={isRulesOpen} 
+        onClose={() => setIsRulesOpen(false)} 
+      />
 
     </div>
   );
