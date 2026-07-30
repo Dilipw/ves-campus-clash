@@ -15,13 +15,14 @@ class GameLog extends Model
     |--------------------------------------------------------------------------
     */
 
-    public const EVENT_GAME_STARTED    = 1;
-    public const EVENT_LEVEL_COMPLETED = 2;
-    public const EVENT_MATCH_FOUND     = 3;
-    public const EVENT_MISMATCH        = 4;
-    public const EVENT_GAME_COMPLETED  = 5;
-    public const EVENT_GAME_EXPIRED    = 6;
-    public const EVENT_GAME_ABANDONED  = 7;
+    public const EVENT_GAME_STARTED      = 1;
+    public const EVENT_PROGRESS_UPDATED  = 2;
+    public const EVENT_MATCH_FOUND       = 3;
+    public const EVENT_MISMATCH          = 4;
+    public const EVENT_LEVEL_COMPLETED   = 5;
+    public const EVENT_GAME_COMPLETED    = 6;
+    public const EVENT_GAME_EXPIRED      = 7;
+    public const EVENT_GAME_ABANDONED    = 8;
 
     /*
     |--------------------------------------------------------------------------
@@ -78,7 +79,6 @@ class GameLog extends Model
             if (blank($log->logged_at)) {
                 $log->logged_at = now();
             }
-
         });
     }
 
@@ -124,22 +124,23 @@ class GameLog extends Model
     {
         return match ($this->event_type) {
 
-            self::EVENT_GAME_STARTED    => 'Game Started',
+            self::EVENT_GAME_STARTED      => 'Game Started',
 
-            self::EVENT_LEVEL_COMPLETED => 'Level Completed',
+            self::EVENT_PROGRESS_UPDATED  => 'Progress Updated',
 
-            self::EVENT_MATCH_FOUND     => 'Match Found',
+            self::EVENT_MATCH_FOUND       => 'Match Found',
 
-            self::EVENT_MISMATCH        => 'Mismatch',
+            self::EVENT_MISMATCH          => 'Mismatch',
 
-            self::EVENT_GAME_COMPLETED  => 'Game Completed',
+            self::EVENT_LEVEL_COMPLETED   => 'Level Completed',
 
-            self::EVENT_GAME_EXPIRED    => 'Game Expired',
+            self::EVENT_GAME_COMPLETED    => 'Game Completed',
 
-            self::EVENT_GAME_ABANDONED  => 'Game Abandoned',
+            self::EVENT_GAME_EXPIRED      => 'Game Expired',
+
+            self::EVENT_GAME_ABANDONED    => 'Game Abandoned',
 
             default => 'Unknown',
-
         };
     }
 }
