@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { participantApi } from "../services/api";
+import { participantApi, gameApi } from "../services/api";
 import GameRulesModal from "../components/GameRulesModal";
 
 export default function RegisterPage() {
@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [apiError, setApiError] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   const {
     register,
@@ -27,6 +28,37 @@ export default function RegisterPage() {
       profile_photo: null,
     },
   });
+
+  // If a participant already exists locally, don't trust it blindly —
+  // ask the server what their real session status is and route accordingly.
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("participant") || "null");
+
+    if (!stored?.uuid || !stored?.game_session?.uuid) {
+      setCheckingSession(false);
+      return;
+    }
+
+    gameApi
+      .getStatus(stored.game_session.uuid)
+      .then((res) => {
+        const status = res.data?.data?.status || res.data?.status;
+
+        if (status === "Completed") {
+          navigate("/result", { replace: true });
+        } else if (status === "InProgress" || status === "Registered") {
+          navigate("/game", { replace: true });
+        } else {
+          localStorage.removeItem("participant");
+          setCheckingSession(false);
+        }
+      })
+      .catch(() => {
+        // stale/invalid local data, let them re-register
+        localStorage.removeItem("participant");
+        setCheckingSession(false);
+      });
+  }, [navigate]);
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
@@ -52,26 +84,14 @@ export default function RegisterPage() {
         formData.append("profile_photo", data.profile_photo);
       }
 
-      // Call Laravel API
       const response = await participantApi.register(formData);
-      
-      // Response structure from ApiResponse trait: response.data.data
       const participantData = response.data?.data || response.data;
 
-      // Save participant details to LocalStorage for Game Session use
       localStorage.setItem("participant", JSON.stringify(participantData));
-
-      console.log("Registered Participant:", participantData);
-
-      // Redirect student to the game route
       navigate("/game");
     } catch (error) {
-      console.error("Registration error:", error);
-
-      if (error.response && error.response.status === 422) {
+      if (error.response?.status === 422) {
         const validationErrors = error.response.data.errors;
-        
-        // Map Laravel validation errors to React Hook Form fields
         Object.keys(validationErrors).forEach((field) => {
           setError(field, {
             type: "server",
@@ -86,19 +106,24 @@ export default function RegisterPage() {
     }
   };
 
+  // Avoid flashing the form while we confirm there's no active session
+  if (checkingSession) {
+    return (
+      <div className="w-full h-[60vh] flex items-center justify-center">
+        <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 font-body">
-      
-      {/* Grid container with items-stretch so both cards match height on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-stretch">
-        
-        {/* Registration Form (Right on Desktop, Top on Mobile) */}
+
+        {/* Registration Form */}
         <div className="lg:col-span-7 order-1 lg:order-2 w-full flex">
-          
           <div className="bg-paper text-paper-hi rounded-ticket shadow-ticket p-4 sm:p-6 sm:px-8 border border-paper-line relative w-full flex flex-col justify-between">
-            
+
             <div>
-              {/* Header */}
               <header className="mb-4 border-b border-paper-line pb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-mono text-small uppercase text-punch font-bold">
@@ -109,25 +134,20 @@ export default function RegisterPage() {
                     ENTRY FORM
                   </span>
                 </div>
-
                 <h1 className="font-display text-h2 uppercase tracking-tight leading-none">
                   Student Registration
                 </h1>
               </header>
 
-              {/* Global API Error Alert */}
               {apiError && (
                 <div className="mb-4 p-3 bg-punch/10 border border-punch rounded-card text-punch text-small font-mono">
                   {apiError}
                 </div>
               )}
 
-              {/* Form */}
               <form id="registration-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
-                
-                {/* Row 1: Full Name & Profile Photo */}
+
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                  
                   <div className="sm:col-span-8">
                     <label className="block font-display text-small uppercase tracking-wider mb-1 font-bold">
                       Full Name <span className="text-punch">*</span>
@@ -139,9 +159,7 @@ export default function RegisterPage() {
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.full_name && (
-                      <p className="font-mono text-small text-punch mt-0.5">
-                        {errors.full_name.message}
-                      </p>
+                      <p className="font-mono text-small text-punch mt-0.5">{errors.full_name.message}</p>
                     )}
                   </div>
 
@@ -151,11 +169,7 @@ export default function RegisterPage() {
                     </label>
                     <div className="flex items-center gap-2 bg-white/80 border border-paper-line rounded-card p-1.5 px-2">
                       {photoPreview ? (
-                        <img
-                          src={photoPreview}
-                          alt="Preview"
-                          className="w-7 h-7 rounded-full object-cover shrink-0"
-                        />
+                        <img src={photoPreview} alt="Preview" className="w-7 h-7 rounded-full object-cover shrink-0" />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-paper-line/30 flex items-center justify-center text-small shrink-0">
                           📷
@@ -163,21 +177,13 @@ export default function RegisterPage() {
                       )}
                       <label className="text-small font-display uppercase tracking-wider text-ink hover:text-punch cursor-pointer truncate font-bold">
                         {photoPreview ? "Change" : "Upload"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoChange}
-                          className="hidden"
-                        />
+                        <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
                       </label>
                     </div>
                   </div>
-
                 </div>
 
-                {/* Row 2: Institute & Course */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
                   <div>
                     <label className="block font-display text-small uppercase tracking-wider mb-1 font-bold">
                       Institute <span className="text-punch">*</span>
@@ -189,9 +195,7 @@ export default function RegisterPage() {
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.institute && (
-                      <p className="font-mono text-small text-punch mt-0.5">
-                        {errors.institute.message}
-                      </p>
+                      <p className="font-mono text-small text-punch mt-0.5">{errors.institute.message}</p>
                     )}
                   </div>
 
@@ -206,17 +210,12 @@ export default function RegisterPage() {
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.course && (
-                      <p className="font-mono text-small text-punch mt-0.5">
-                        {errors.course.message}
-                      </p>
+                      <p className="font-mono text-small text-punch mt-0.5">{errors.course.message}</p>
                     )}
                   </div>
-
                 </div>
 
-                {/* Row 3: Academic Year & Instagram Handle */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
                   <div>
                     <label className="block font-display text-small uppercase tracking-wider mb-1 font-bold">
                       Academic Year <span className="text-punch">*</span>
@@ -232,14 +231,10 @@ export default function RegisterPage() {
                         <option value="TY">Third Year (TY)</option>
                         <option value="Final">Final Year</option>
                       </select>
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-paper-lo text-small">
-                        ▼
-                      </span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-paper-lo text-small">▼</span>
                     </div>
                     {errors.academic_year && (
-                      <p className="font-mono text-small text-punch mt-0.5">
-                        {errors.academic_year.message}
-                      </p>
+                      <p className="font-mono text-small text-punch mt-0.5">{errors.academic_year.message}</p>
                     )}
                   </div>
 
@@ -250,21 +245,15 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       placeholder="@username"
-                      {...register("instagram_handle", {
-                        required: "Instagram username is required.",
-                      })}
+                      {...register("instagram_handle", { required: "Instagram username is required." })}
                       className="w-full bg-white/80 border border-paper-line rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:ring-punch focus:bg-white transition"
                     />
                     {errors.instagram_handle && (
-                      <p className="font-mono text-small text-punch mt-0.5">
-                        {errors.instagram_handle.message}
-                      </p>
+                      <p className="font-mono text-small text-punch mt-0.5">{errors.instagram_handle.message}</p>
                     )}
                   </div>
-
                 </div>
 
-                {/* Row 4: Instagram Follow Confirmation Checkbox */}
                 <div className="pt-2">
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
@@ -279,16 +268,13 @@ export default function RegisterPage() {
                     </span>
                   </label>
                   {errors.follow_confirmed && (
-                    <p className="font-mono text-small text-punch mt-1">
-                      {errors.follow_confirmed.message}
-                    </p>
+                    <p className="font-mono text-small text-punch mt-1">{errors.follow_confirmed.message}</p>
                   )}
                 </div>
 
               </form>
             </div>
 
-            {/* Submit Button aligned at the bottom */}
             <button
               type="submit"
               form="registration-form"
@@ -306,14 +292,11 @@ export default function RegisterPage() {
             </button>
 
           </div>
-
         </div>
 
-        {/* Compact Game Highlights Sidebar */}
+        {/* Game Highlights Sidebar */}
         <div className="lg:col-span-5 order-2 lg:order-1 w-full flex">
-          
           <div className="bg-ink-soft border border-ink-line rounded-card p-4 sm:p-5 flex flex-col justify-between w-full">
-            
             <div>
               <span className="font-mono text-small text-volt uppercase tracking-widest font-bold block mb-0.5">
                 // GAME OVERVIEW
@@ -325,7 +308,6 @@ export default function RegisterPage() {
                 2-level memory challenge designed to test your speed & precision.
               </p>
 
-              {/* Stats Bar */}
               <div className="grid grid-cols-3 gap-1 border-y border-ink-line py-2.5 my-3">
                 <div className="text-center">
                   <span className="block font-display text-body font-bold text-volt">2</span>
@@ -341,7 +323,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Rules List */}
               <ul className="space-y-1.5 text-small text-text-hi font-body">
                 <li className="flex items-start gap-2">
                   <span className="font-mono text-volt font-bold">01.</span>
@@ -357,7 +338,6 @@ export default function RegisterPage() {
                 </li>
               </ul>
 
-              {/* Trigger Link for Full Rules Modal */}
               <div className="mt-3 pt-2 border-t border-ink-line/50">
                 <button
                   type="button"
@@ -370,26 +350,18 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Compact Story Card Highlight */}
             <div className="bg-paper/10 border border-paper-line/20 rounded-card p-2.5 mt-3 flex items-center gap-2">
               <span className="text-punch text-body font-display">★</span>
               <p className="text-[12px] text-text-hi leading-tight">
                 Clear Level 2 to unlock your shareable <strong>Instagram Story Card</strong>!
               </p>
             </div>
-
           </div>
-
         </div>
 
       </div>
 
-      {/* Render Rules Modal */}
-      <GameRulesModal 
-        isOpen={isRulesOpen} 
-        onClose={() => setIsRulesOpen(false)} 
-      />
-
+      <GameRulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
     </div>
   );
 }

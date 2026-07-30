@@ -18,4 +18,32 @@ export const participantApi = {
   },
 };
 
+export const gameApi = {
+  start: (participantUuid) => {
+    return API.post('/game/start', { participant_uuid: participantUuid });
+  },
+
+  progress: (gameSessionUuid, payload) => {
+    return API.post('/game/progress', {
+      game_session_uuid: gameSessionUuid,
+      ...payload,
+    });
+  },
+
+  complete: (gameSessionUuid, payload) => {
+    return API.post('/game/complete', {
+      game_session_uuid: gameSessionUuid,
+      ...payload,
+    });
+  },
+
+  result: (gameSessionUuid) => {
+    return API.get(`/game/result/${gameSessionUuid}`);
+  },
+
+  getStatus: (gameSessionUuid) => {
+    return API.get(`/game/session/${gameSessionUuid}/status`);
+  },
+};
+
 export default API;
