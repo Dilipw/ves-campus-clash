@@ -4,15 +4,19 @@ import { gameApi, API_BASE_URL } from "../services/api";
 import ProtectedRoute, { STATUS } from "../components/ProtectedRoute";
 import "./game.css";
 
-// Mirrors the GDD (Section 7/8): 2 levels, increasing difficulty.
-// Duration is per-level for display only — what we report to the
-// server is a single monotonic "remaining_time" budget (see notes).
 const LEVELS = [
     { level: 1, pairs: 8, cols: 4, duration: 45 },
     { level: 2, pairs: 10, cols: 5, duration: 35 },
 ];
 const TOTAL_BUDGET = LEVELS.reduce((sum, l) => sum + l.duration, 0);
 const ICONS = ["⚡", "🔥", "⭐", "🎯", "💎", "🚀", "❤️", "🌟", "🎓", "🏆"];
+
+// Restored to a short interval on purpose: this is the server's main
+// anti-cheat checkpoint. Each sync gives the backend a timestamped
+// snapshot of matched_pairs/moves/remaining_time to compare against
+// what's ultimately submitted at `complete` — the more checkpoints,
+// the smaller the window for a single fabricated jump to go unnoticed.
+// Combined with level-transition syncs and the beforeunload beacon.
 const SYNC_INTERVAL_MS = 5000;
 
 function shuffle(arr) {
@@ -44,9 +48,6 @@ function GameBoard({ sessionData }) {
     const participant = JSON.parse(localStorage.getItem("participant") || "{}");
     const sessionUuid = participant?.game_session?.uuid;
 
-    // Resume point: if we're already Playing (e.g. page refresh mid-game),
-    // start the player on their last known level with a fresh board rather
-    // than trying to reconstruct exact card positions — fair and simple.
     const startingLevel = sessionData?.status === STATUS.PLAYING
         ? Math.max(1, sessionData.current_level)
         : 1;
@@ -56,23 +57,38 @@ function GameBoard({ sessionData }) {
     const [flipped, setFlipped] = useState([]);
     const [locked, setLocked] = useState(false);
     const [started, setStarted] = useState(false);
-    const [busy, setBusy] = useState(true);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
 
-    // Fast-changing counters live in refs so the ticking interval and
-    // click handlers always read the latest value without stale closures.
+    // Gate — true until the player has actually pressed "Start Game".
+    // A session with status Registered lands here first; a session
+    // that's already Playing (e.g. refresh mid-game) skips straight
+    // to the board.
+    const [awaitingStart, setAwaitingStart] = useState(
+        sessionData?.status === STATUS.REGISTERED
+    );
+    const [starting, setStarting] = useState(false);
+
+    // Backend tracks matched_pairs as a running TOTAL for the whole session
+    // (it rejects any sync where the value decreases). We need a separate
+    // per-level counter to know when the current level's board is cleared,
+    // Backend ab matched_pairs ko CUMULATIVE track karta hai poore session
+    // ke liye (kabhi reset nahi hota, aur cap bhi level ke hisaab se
+    // cumulative badhta hai: level 1 cap = 8, level 2 cap = 8+10 = 18).
+    // Isliye is counter ko level transition pe reset karne ki zaroorat
+    // nahi — bas hamesha increment hota rahega poore game session mein.
     const matchedPairsRef = useRef(sessionData?.matched_pairs || 0);
     const movesRef = useRef(sessionData?.moves || 0);
-    const scoreRef = useRef(sessionData?.score || 0); // display only — server owns the real score
+    // `score` is authoritative only after `complete` responds — the
+    // backend computes real score at completion, not during play.
+    // We still send it on `progress` because the endpoint validates
+    // it as required; 0 is a safe placeholder mid-game.
+    const scoreRef = useRef(sessionData?.score || 0);
     const streakRef = useRef(0);
     const elapsedRef = useRef(TOTAL_BUDGET - (sessionData?.remaining_time ?? TOTAL_BUDGET));
     const lastConfirmedRemainingRef = useRef(sessionData?.remaining_time ?? TOTAL_BUDGET);
     const levelDeadlineRef = useRef(null);
     const lastSyncRef = useRef(0);
-
-    // Guards against React Strict Mode's dev-only double-invoke of effects,
-    // and against any accidental double-fire of the init logic in general.
-    const initRef = useRef(false);
 
     const [display, setDisplay] = useState({
         matchedPairs: matchedPairsRef.current,
@@ -100,11 +116,11 @@ function GameBoard({ sessionData }) {
 
         const payload = {
             current_level: levelIdx + 1,
-            matched_pairs: matchedPairsRef.current,
+            matched_pairs: matchedPairsRef.current, // cumulative
             moves: movesRef.current,
             remaining_time: currentRemainingBudget(),
             time_taken: safeTimeTaken,
-            score: scoreRef.current,
+            score: scoreRef.current, // required field on /progress
             ...overrides,
         };
         try {
@@ -112,6 +128,8 @@ function GameBoard({ sessionData }) {
             const updated = res.data?.data || res.data;
             lastConfirmedRemainingRef.current = updated.remaining_time;
             lastSyncRef.current = Date.now();
+            // NOTE: /progress always echoes score: 0 server-side — real
+            // score only exists after /complete — deliberately not read here.
         } catch (err) {
             console.warn("progress sync failed", err.response?.data || err);
         }
@@ -121,65 +139,65 @@ function GameBoard({ sessionData }) {
         setStarted(false);
         setLocked(true);
         try {
-            await gameApi.complete(sessionUuid, {
+            const res = await gameApi.complete(sessionUuid, {
                 current_level: levelIdx + 1,
-                matched_pairs: matchedPairsRef.current,
+                matched_pairs: matchedPairsRef.current, // cumulative — includes all prior levels too
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
             });
+            const result = res.data?.data?.result || res.data?.result;
+            if (result?.score != null) {
+                scoreRef.current = result.score; // real, final, server-computed score
+                forceRender();
+            }
             navigate("/result", { replace: true, state: { justCompleted: true, reason } });
         } catch (err) {
             setError(err.response?.data?.message || "Could not save your result. Please check your connection.");
         }
     }, [sessionUuid, levelIdx, currentRemainingBudget, navigate]);
 
-    // ---- game start / resume -----------------------------------------
+    // ---- explicit start (fires only on button press, not on mount) ----
 
+    function enterBoard() {
+        setBoard(buildDeck(LEVELS[levelIdx]));
+        levelDeadlineRef.current = Date.now() + LEVELS[levelIdx].duration * 1000;
+        setStarted(true);
+    }
+
+    async function handleStartGame() {
+        setStarting(true);
+        setError(null);
+        try {
+            await gameApi.start(sessionUuid);
+            lastConfirmedRemainingRef.current = TOTAL_BUDGET;
+            elapsedRef.current = 0;
+            enterBoard();
+            setAwaitingStart(false);
+        } catch (err) {
+            const alreadyStarted = err.response?.status === 409;
+            if (alreadyStarted) {
+                // Session is legitimately already Playing server-side (double
+                // click, retry, second tab). Not a real failure — resume.
+                enterBoard();
+                setAwaitingStart(false);
+                return;
+            }
+            setError(err.response?.data?.message || "Could not start the game.");
+        } finally {
+            setStarting(false);
+        }
+    }
+
+    // Resume case: session was already Playing on load (e.g. refresh
+    // mid-game) — skip the Start screen entirely, drop into the board.
+    const initRef = useRef(false);
     useEffect(() => {
-        // Strict Mode runs effects twice in dev — this ref makes sure the
-        // actual start/resume logic below only ever executes once per mount.
         if (initRef.current) return;
         initRef.current = true;
-
-        let cancelled = false;
-
-        function enterBoard() {
-            if (cancelled) return;
-            setBoard(buildDeck(LEVELS[levelIdx]));
-            levelDeadlineRef.current = Date.now() + LEVELS[levelIdx].duration * 1000;
-            setStarted(true);
-            setBusy(false);
+        if (sessionData?.status === STATUS.PLAYING) {
+            enterBoard();
         }
-
-        async function init() {
-            try {
-                if (sessionData?.status === STATUS.REGISTERED) {
-                    await gameApi.start(sessionUuid);
-                    lastConfirmedRemainingRef.current = TOTAL_BUDGET;
-                    elapsedRef.current = 0;
-                }
-                enterBoard();
-            } catch (err) {
-                const alreadyStarted = err.response?.status === 409;
-
-                if (alreadyStarted) {
-                    // Session is legitimately already Playing server-side (double
-                    // click, retry, second tab, etc). Not a real failure — just
-                    // resume into the board instead of showing an error.
-                    enterBoard();
-                    return;
-                }
-
-                if (!cancelled) {
-                    setError(err.response?.data?.message || "Could not start the game.");
-                    setBusy(false);
-                }
-            }
-        }
-
-        init();
-        return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -215,10 +233,11 @@ function GameBoard({ sessionData }) {
             const payload = JSON.stringify({
                 game_session_uuid: sessionUuid,
                 current_level: levelIdx + 1,
-                matched_pairs: matchedPairsRef.current,
+                matched_pairs: matchedPairsRef.current, // cumulative
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
+                score: scoreRef.current, // required field on /progress
             });
             navigator.sendBeacon?.(
                 `${API_BASE_URL}/game/progress`,
@@ -249,7 +268,7 @@ function GameBoard({ sessionData }) {
             setTimeout(() => {
                 if (isMatch) {
                     streakRef.current += 1;
-                    matchedPairsRef.current += 1;
+                    matchedPairsRef.current += 1; // cumulative, never reset
 
                     if (a.isPowerUp || b.isPowerUp) {
                         elapsedRef.current = Math.max(0, elapsedRef.current - 5); // +5s bonus
@@ -260,16 +279,23 @@ function GameBoard({ sessionData }) {
                         prev.map((c) => (c.id === a.id || c.id === b.id ? { ...c, matched: true } : c))
                     );
 
-                    const config = LEVELS[levelIdx];
-                    const matchedInLevel = board.filter((c) => c.matched).length + 1;
+                    // Target for "this level is done" is the CUMULATIVE pair
+                    // count through this level (e.g. level 1 target = 8,
+                    // level 2 target = 8 + 10 = 18) — matches the backend's
+                    // cumulative cap exactly.
+                    const cumulativeTarget = LEVELS
+                        .slice(0, levelIdx + 1)
+                        .reduce((sum, l) => sum + l.pairs, 0);
 
-                    if (matchedInLevel === config.pairs) {
+                    if (matchedPairsRef.current === cumulativeTarget) {
                         if (levelIdx < LEVELS.length - 1) {
-                            syncProgress({ current_level: levelIdx + 2 }).then(() => {
-                                setLevelIdx((i) => i + 1);
-                                setBoard(buildDeck(LEVELS[levelIdx + 1]));
-                                levelDeadlineRef.current = Date.now() + LEVELS[levelIdx + 1].duration * 1000;
-                            });
+                            const nextLevelIdx = levelIdx + 1;
+                            setLevelIdx(nextLevelIdx);
+                            setBoard(buildDeck(LEVELS[nextLevelIdx]));
+                            levelDeadlineRef.current = Date.now() + LEVELS[nextLevelIdx].duration * 1000;
+                            // No matched_pairs override — counter is cumulative
+                            // and already correct for the new current_level.
+                            syncProgress({ current_level: nextLevelIdx + 1 });
                         } else {
                             completeGame("cleared");
                         }
@@ -301,7 +327,34 @@ function GameBoard({ sessionData }) {
         );
     }
 
+    // Start screen — shown for Registered sessions until the player taps Start.
+    if (awaitingStart) {
+        return (
+            <div className="max-w-md mx-auto px-3 py-10 text-center">
+                <h2 className="font-display text-h2 uppercase mb-2">Ready?</h2>
+                <p className="text-paper-lo text-small mb-6">
+                    2 levels. Match pairs before the timer runs out. Tap Start when you're ready — the clock begins immediately.
+                </p>
+                <button
+                    onClick={handleStartGame}
+                    disabled={starting}
+                    className="w-full bg-punch hover:bg-punch-dim disabled:opacity-50 text-text-hi rounded-pill py-3 font-display text-h3 uppercase transition"
+                >
+                    {starting ? "Starting…" : "Start Game"}
+                </button>
+            </div>
+        );
+    }
+
     const config = LEVELS[levelIdx];
+
+    // matchedPairsRef ab poore session ka cumulative count hai — UI mein
+    // sirf CURRENT level ke matches dikhane hain, isliye pehle wale
+    // levels ka total minus karke per-level count nikaalo.
+    const previousLevelsTotal = LEVELS
+        .slice(0, levelIdx)
+        .reduce((sum, l) => sum + l.pairs, 0);
+    const pairsMatchedThisLevel = matchedPairsRef.current - previousLevelsTotal;
 
     return (
         <div className="max-w-md mx-auto px-3 py-6">
@@ -335,7 +388,7 @@ function GameBoard({ sessionData }) {
                 </div>
 
                 <div className="flex justify-between text-small font-mono text-paper-lo">
-                    <span>Pairs: {matchedPairsRef.current}/{config.pairs}</span>
+                    <span>Pairs: {pairsMatchedThisLevel}/{config.pairs}</span>
                     <span>Moves: {movesRef.current}</span>
                 </div>
             </div>
