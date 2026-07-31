@@ -24,7 +24,7 @@ backend/vendor/
 ############################
 # Build Output
 ############################
-frontend/dist/
+#frontend/dist/  
 frontend/dist-ssr/
 frontend/.vite/
 
