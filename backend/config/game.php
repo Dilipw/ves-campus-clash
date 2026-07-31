@@ -30,11 +30,29 @@ return [
     |--------------------------------------------------------------------------
     | These bound what the client is allowed to report during progress
     | updates so a manipulated payload can't fast-forward the session.
+    |
+    | max_pairs_level is kept only for backward compatibility — it is no
+    | longer read by GameProgressService's pair-limit check. That check
+    | now uses pairs_by_level below to compute a CUMULATIVE cap per level
+    | (e.g. by level 2, matched_pairs should be at most 8 + 10 = 18),
+    | since matched_pairs is tracked as a running total across the whole
+    | session and never resets between levels.
+    |
+    | pairs_by_level MUST match the LEVELS array in the React frontend
+    | (GamePage.jsx) exactly — level number => that level's pair count.
+    | If you add a level 3 in the frontend, add it here too, and bump
+    | max_level to match — otherwise the backend will reject progress
+    | past level 2 with "Invalid level."
     */
 
     'levels' => [
-        'max_level'       => env('GAME_MAX_LEVEL', 10),
+        'max_level'       => env('GAME_MAX_LEVEL', 2),
         'max_pairs_level' => env('GAME_MAX_PAIRS_PER_LEVEL', 8),
+
+        'pairs_by_level' => [
+            1 => 8,
+            2 => 10,
+        ],
     ],
 
     /*
