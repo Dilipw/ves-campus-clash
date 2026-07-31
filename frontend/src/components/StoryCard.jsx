@@ -98,12 +98,13 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             </div>
 
             {/* Player */}
-            <div style={{ marginTop: 32, display: "flex", flexDirection: "column", alignItems: "center",paddingTop:50 }}>
+            <div style={{ marginTop: 32, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 50 }}>
                 <img
                     src={photo}
                     alt={name}
-                    width={180}
-                    height={180}
+                    crossOrigin="anonymous"
+                    width={170}
+                    height={150}
                     style={{
                         borderRadius: "50%",
                         objectFit: "cover",

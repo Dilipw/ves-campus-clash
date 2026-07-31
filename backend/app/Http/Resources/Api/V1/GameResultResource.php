@@ -39,7 +39,11 @@ class GameResultResource extends JsonResource
 
                 'full_name' => $this->participant->full_name,
 
-                'profile_photo' => $this->participant->profile_photo,
+                'profile_photo' => $this->participant->profile_photo
+                    ? route('media.show', [
+                        'path' => $this->participant->profile_photo
+                    ])
+                    : null,
 
                 'instagram_handle' => $this->participant->instagram_handle,
 
