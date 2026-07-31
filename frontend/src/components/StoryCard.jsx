@@ -2,12 +2,6 @@ import { forwardRef } from "react";
 import {
     Trophy,
     QrCode,
-    Globe,
-    Camera,
-    Smartphone,
-    Gamepad2,
-    Heart,
-    Flame,
     Award
 } from "lucide-react";
 
@@ -76,42 +70,40 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 position: "relative",
                 fontFamily: "'Outfit', sans-serif",
                 color: c.text,
-                padding: "55px 70px",
+                padding: "50px 65px",
                 display: "flex",
                 flexDirection: "column",
             }}
         >
             {/* Header */}
             <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 46, fontWeight: 900, color: c.primary, textTransform: "uppercase" }}>
+                <div style={{ fontSize: 52, fontWeight: 900, color: c.primary, textTransform: "uppercase", letterSpacing: 1 }}>
                     VES Campus Clash
                 </div>
-                <div style={{ marginTop: 8, fontSize: 20, fontWeight: 700, color: c.muted, letterSpacing: 4 }}>
+                <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: c.muted, letterSpacing: 5 }}>
                     SCAN • PLAY • SCORE
                 </div>
             </div>
 
-            {/* Score */}
-            <div style={{ marginTop: 36, textAlign: "center" }}>
-                <div style={{ fontSize: 30, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 3 }}>
+            {/* Score – tighter gap + larger fonts */}
+            <div style={{ marginTop: 32, textAlign: "center" }}>
+                <div style={{ fontSize: 32, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 4 }}>
                     Final Score
                 </div>
 
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 150, fontWeight: 800, lineHeight: 1 }}>
+                {/* gap reduced: marginTop 2 instead of 8 */}
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 180, fontWeight: 800, lineHeight: 0.95, marginTop: 2 }}>
                     {score}
-                </div>
-                <div style={{ fontSize: 30, color: c.muted, fontWeight: 600, marginTop: 40, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <span>One Shot • One Score</span>
                 </div>
             </div>
 
             {/* Player */}
-            <div style={{ marginTop: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ marginTop: 32, display: "flex", flexDirection: "column", alignItems: "center",paddingTop:50 }}>
                 <img
                     src={photo}
                     alt={name}
-                    width={130}
-                    height={130}
+                    width={180}
+                    height={180}
                     style={{
                         borderRadius: "50%",
                         objectFit: "cover",
@@ -119,8 +111,8 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                         background: c.white,
                     }}
                 />
-                <div style={{ marginTop: 16, fontSize: 36, fontWeight: 800, textAlign: "center" }}>{name}</div>
-                <div style={{ marginTop: 6, fontSize: 20, fontWeight: 600, color: c.muted }}>@{handle}</div>
+                <div style={{ marginTop: 16, fontSize: 42, fontWeight: 800, textAlign: "center" }}>{name}</div>
+                <div style={{ marginTop: 4, fontSize: 24, fontWeight: 600, color: c.muted }}>@{handle}</div>
             </div>
 
             <Divider />
@@ -128,11 +120,11 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             {/* Stats */}
             <div
                 style={{
-                    marginTop: 28,
+                    marginTop: 24,
                     background: c.white,
                     border: `2px solid ${c.divider}`,
                     borderRadius: 32,
-                    padding: "30px 30px",
+                    padding: "30px 26px",
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gap: 24,
@@ -140,14 +132,14 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             >
                 {stats.map(({ label, value, accent }) => (
                     <div key={label} style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: c.muted, letterSpacing: 2, textTransform: "uppercase" }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: c.muted, letterSpacing: 2, textTransform: "uppercase" }}>
                             {label}
                         </div>
                         <div
                             style={{
-                                marginTop: 10,
+                                marginTop: 8,
                                 fontFamily: "'Space Grotesk', sans-serif",
-                                fontSize: 48,
+                                fontSize: 56,
                                 fontWeight: 800,
                                 color: accent ? c.primary : c.text,
                             }}
@@ -163,10 +155,10 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             {/* Achievement */}
             <div
                 style={{
-                    marginTop: 28,
+                    marginTop: 24,
                     background: `linear-gradient(135deg, ${c.primary}, ${c.primaryDark})`,
                     borderRadius: 32,
-                    padding: "32px 36px",
+                    padding: "30px 34px",
                     color: c.white,
                     display: "flex",
                     alignItems: "center",
@@ -175,11 +167,11 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 }}
             >
                 <div>
-                    <div style={{ fontSize: 30, fontWeight: 900, display: "flex", alignItems: "center", gap: 12 }}>
-                        <Award size={32} />
+                    <div style={{ fontSize: 32, fontWeight: 900, display: "flex", alignItems: "center", gap: 12 }}>
+                        <Award size={34} />
                         <span>Memory Master</span>
                     </div>
-                    <div style={{ marginTop: 10, fontSize: 18, lineHeight: 1.5, opacity: 0.95 }}>
+                    <div style={{ marginTop: 8, fontSize: 20, lineHeight: 1.5, opacity: 0.95 }}>
                         Completed the VES Campus Clash Memory Match Challenge.
                     </div>
                 </div>
@@ -205,29 +197,24 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             <div
                 style={{
                     borderTop: `3px solid ${c.divider}`,
-                    paddingTop: 28,
+                    paddingTop: 24,
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 30,
+                    gap: 28,
                 }}
             >
                 <div>
-                    <div style={{ fontSize: 34, fontWeight: 900, color: c.primary }}>Challenge Your Friends</div>
-                    <div style={{ marginTop: 5, fontSize: 18, color: c.muted, lineHeight: 1.8, display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Smartphone size={20} color={c.primary} />
-                            <span>Scan the QR Code</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Gamepad2 size={20} color={c.primary} />
-                            <span>Play Memory Match</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Heart size={20} color={c.primary} />
-                            <span>Follow <strong>@ves.ac.in</strong></span>
-                        </div>
+                    <div style={{ fontSize: 34, fontWeight: 900, color: c.primary }}>
+                        Challenge Your Friends
                     </div>
+
+                    <div style={{ marginTop: 12, fontSize: 22, color: c.muted, lineHeight: 1.65, fontWeight: 600 }}>
+                        <div>Scan the QR Code</div>
+                        <div>Play Memory Match</div>
+                        <div>Follow @ves.ac.in</div>
+                    </div>
+
                     <Badge style={{ marginTop: 16 }}>#VESCampusClash</Badge>
                 </div>
 
@@ -245,30 +232,25 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                     >
                         <QR size={120} />
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: c.primary, textTransform: "uppercase" }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 1 }}>
                         Scan to Play
                     </div>
                 </div>
             </div>
 
+            {/* Bottom links */}
             <div
                 style={{
                     marginTop: 18,
                     display: "flex",
                     justifyContent: "space-between",
                     color: c.muted,
-                    fontSize: 16,
+                    fontSize: 20,
                     fontWeight: 700,
                 }}
             >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Globe size={18} color={c.muted} />
-                    <span>www.ves.ac.in</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Camera size={18} color={c.muted} />
-                    <span>@ves.ac.in</span>
-                </div>
+                <span>www.ves.ac.in</span>
+                <span>@ves.ac.in</span>
             </div>
 
             {/* Bottom strip */}
@@ -308,7 +290,7 @@ function Badge({ children, style }) {
 }
 
 function Divider() {
-    return <div style={{ marginTop: 28, height: 2, background: c.divider, borderRadius: 999 }} />;
+    return <div style={{ marginTop: 24, height: 2, background: c.divider, borderRadius: 999 }} />;
 }
 
 export default StoryCard;
