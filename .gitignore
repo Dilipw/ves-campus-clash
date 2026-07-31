@@ -49,6 +49,8 @@ backend/bootstrap/cache/*
 ############################
 # Environment Files
 ############################
+# But keep examples
+!.env.example
 .env
 .env.*
 frontend/.env
