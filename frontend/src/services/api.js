@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Adjust baseURL according to your Laravel local/production URL
 const API = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/v1',
+  baseURL: 'https://api.sundigit.in/api/v1',
   headers: {
     'Accept': 'application/json',
   },
@@ -18,7 +18,7 @@ export const participantApi = {
   },
 };
 
-export const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+export const API_BASE_URL = 'https://api.sundigit.in/api/v1';
 
 export const gameApi = {
   start: (gameSessionUuid) =>
