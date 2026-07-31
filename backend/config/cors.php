@@ -12,6 +12,7 @@ return [
 
     'allowed_origins' => [
         'http://localhost:5173',
+        'https://ves.sundigit.in/',
     ],
 
     'allowed_origins_patterns' => [],
