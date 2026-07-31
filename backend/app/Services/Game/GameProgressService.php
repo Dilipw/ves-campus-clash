@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Exceptions\BusinessException;
 use App\Services\Game\Support\ResolvesGameSession;
+use App\Services\Game\Support\ValidatesGamePairs;
 
 class GameProgressService
 {
-    use ResolvesGameSession;
+    use ResolvesGameSession,ValidatesGamePairs;
 
     /**
      * Save game progress.
@@ -98,6 +99,14 @@ class GameProgressService
      * describes an impossible transition (e.g. going backwards,
      * skipping levels, or exceeding configured bounds).
      *
+     * IMPORTANT: matched_pairs is treated as a CUMULATIVE counter across
+     * the whole session (it never resets between levels — a player on
+     * level 2 who has matched 3 pairs so far this level should be
+     * reporting 8 + 3 = 11, not 3). This is the only design that lets
+     * a single monotonic-never-decreases field coexist with a per-level
+     * pair limit across a multi-level game, since each level can have
+     * a different pair count.
+     *
      * @param GameSession $session
      * @param array $data
      * @return array
@@ -106,8 +115,7 @@ class GameProgressService
      */
     private function sanitizeProgressData(GameSession $session, array $data): array
     {
-        $maxLevel      = (int) config('game.levels.max_level');
-        $maxPairsLevel = (int) config('game.levels.max_pairs_level');
+        $maxLevel = (int) config('game.levels.max_level');
 
         if ($data['current_level'] < $session->current_level) {
             throw new BusinessException('Invalid level progression.', 422);
@@ -125,7 +133,11 @@ class GameProgressService
             throw new BusinessException('Matched pairs cannot decrease.', 422);
         }
 
-        if ($data['matched_pairs'] > $maxPairsLevel) {
+        $maxPairsForLevel = $this->cumulativePairsCapForLevel(
+            $data['current_level']
+        );
+
+        if ($data['matched_pairs'] > $maxPairsForLevel) {
             throw new BusinessException('Matched pairs exceed the level limit.', 422);
         }
 
@@ -151,6 +163,7 @@ class GameProgressService
 
         return $data;
     }
+
 
     /**
      * Update game session progress.

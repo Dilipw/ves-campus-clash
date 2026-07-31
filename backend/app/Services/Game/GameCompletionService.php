@@ -11,10 +11,11 @@ use Illuminate\Support\Facades\Log;
 use App\Exceptions\BusinessException;
 use App\Services\ActivityLogService;
 use App\Services\Game\Support\ResolvesGameSession;
+use App\Services\Game\Support\ValidatesGamePairs;
 
 class GameCompletionService
 {
-    use ResolvesGameSession;
+    use ResolvesGameSession, ValidatesGamePairs;
 
     public function __construct(
         protected ActivityLogService $activityLogService
@@ -107,7 +108,16 @@ class GameCompletionService
         if ($data['matched_pairs'] < $session->matched_pairs) {
             throw new BusinessException('Matched pairs cannot decrease.', 422);
         }
+        $maxPairsForLevel = $this->cumulativePairsCapForLevel(
+            $data['current_level']
+        );
 
+        if ($data['matched_pairs'] > $maxPairsForLevel) {
+            throw new BusinessException(
+                'Matched pairs exceed the level limit.',
+                422
+            );
+        }
         if ($data['moves'] < $session->moves) {
             throw new BusinessException('Moves cannot decrease.', 422);
         }
