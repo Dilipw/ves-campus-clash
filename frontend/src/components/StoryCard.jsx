@@ -1,156 +1,62 @@
 import { forwardRef } from "react";
-import { generateAvatarDataUrl } from "../utils/avatar";
 
-// Hand-written inline SVG icons instead of react-icons. The react-icons
-// components rendered fine on screen but came back BLANK in the
-// html2canvas capture (see the "Level Cleared" pill in testing) — a known
-// compatibility gap between that library's SVGs and html2canvas's
-// rasterizer. Plain inline <svg> with hardcoded fill colors captures
-// reliably every time.
-function TrophyIcon({ size = 22, color = "#E2564F" }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-            <path
-                d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4Z"
-                fill={color}
-            />
-            <path
-                d="M7 5H4v1a4 4 0 0 0 4 4M17 5h3v1a4 4 0 0 1-4 4"
-                stroke={color}
-                strokeWidth="1.6"
-                strokeLinecap="round"
-            />
-            <path d="M10 12.5h4v3h-4z" fill={color} />
-            <path d="M8 19h8v1.6H8z" fill={color} />
-            <path d="M9.5 15.5h5l1 3.5h-7l1-3.5Z" fill={color} />
-        </svg>
-    );
-}
-
-function InstagramIcon({ size = 20, color = "#E2564F" }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-            <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke={color} strokeWidth="1.8" />
-            <circle cx="12" cy="12" r="4.6" stroke={color} strokeWidth="1.8" />
-            <circle cx="17.6" cy="6.4" r="1.3" fill={color} />
-        </svg>
-    );
-}
-
-// Simple deterministic "QR-like" placeholder — visually reads as a QR code
-// (three finder squares + a data grid) without needing a QR library. Swap
-// the inner render for a real <QRCode value="..."/> (e.g. react-qr-code)
-// once you have the actual play-link URL to encode.
-function DummyQR({ size = 176, color = "#2B2420" }) {
-    const cells = 21; // classic QR module count, purely visual here
-    const cell = size / cells;
-    const finder = (x, y) => (
-        <g key={`f-${x}-${y}`}>
-            <rect x={x} y={y} width={cell * 7} height={cell * 7} fill="#FFFFFF" />
-            <rect x={x} y={y} width={cell * 7} height={cell * 7} fill={color} />
-            <rect x={x + cell} y={y + cell} width={cell * 5} height={cell * 5} fill="#FFFFFF" />
-            <rect x={x + cell * 2} y={y + cell * 2} width={cell * 3} height={cell * 3} fill={color} />
-        </g>
-    );
-
-    // Fixed pseudo-random-looking grid so it renders identically every
-    // time (deterministic == capture-safe, no client/server mismatch).
-    const seed = 1337;
-    const rng = (i) => {
-        const x = Math.sin(seed + i * 12.9898) * 43758.5453;
-        return x - Math.floor(x);
-    };
-
-    const dataCells = [];
-    let i = 0;
-    for (let row = 0; row < cells; row++) {
-        for (let col = 0; col < cells; col++) {
-            const inFinderTL = row < 8 && col < 8;
-            const inFinderTR = row < 8 && col > cells - 9;
-            const inFinderBL = row > cells - 9 && col < 8;
-            if (inFinderTL || inFinderTR || inFinderBL) continue;
-            i++;
-            if (rng(i) > 0.56) {
-                dataCells.push(
-                    <rect
-                        key={`d-${row}-${col}`}
-                        x={col * cell}
-                        y={row * cell}
-                        width={cell}
-                        height={cell}
-                        fill={color}
-                    />
-                );
-            }
-        }
-    }
-
-    return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-            <rect width={size} height={size} fill="#FFFFFF" />
-            {dataCells}
-            {finder(0, 0)}
-            {finder(size - cell * 7, 0)}
-            {finder(0, size - cell * 7)}
-        </svg>
-    );
-}
-
-// Fixed at Instagram Story resolution (9:16). Rendered off-screen at full
-// size for html2canvas to capture, and re-used at a scaled-down size for
-// the on-page preview — see ResultPage.jsx.
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
 
-// Cream + light-red palette. Colors are solid (no gradients/backgroundClip
-// text tricks) because html2canvas doesn't reliably capture those — it
-// rendered as a solid block in testing. Solid colors capture pixel-perfect.
-const CREAM = "#FBF6EC";
-const CREAM_DEEP = "#F3EAD8";
-const INK = "#2B2420";
-const INK_SOFT = "#6B5F52";
-const RED = "#E2564F";
-const RED_SOFT = "#F4A79F";
-const RED_TINT = "#FCEBE9";
+const c = {
+    bg: "#FFFDF9",
+    primary: "#FF5A1F",
+    primaryDark: "#E84A17",
+    primaryLight: "#FFE7DD",
+    text: "#2D1B15",
+    muted: "#7A6A64",
+    border: "#FF6F00",
+    divider: "#F2E4DB",
+    white: "#FFFFFF",
+    success: "#0F9D58",
+};
 
-function StatPill({ label, value }) {
+function fallbackAvatar(name = "Player") {
+    const initials =
+        name.trim().split(" ").map((v) => v[0]).join("").slice(0, 2).toUpperCase() || "P";
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+        <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF5A1F"/><stop offset="100%" stop-color="#FF875A"/>
+        </linearGradient></defs>
+        <circle cx="90" cy="90" r="90" fill="url(#g)"/>
+        <circle cx="90" cy="90" r="84" fill="none" stroke="#fff" stroke-width="4"/>
+        <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="68" font-weight="700" fill="#fff">${initials}</text>
+    </svg>`;
+
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function QR({ size = 170 }) {
     return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#FFFFFF",
-                border: `1.5px solid ${RED_SOFT}`,
-                borderRadius: 20,
-                padding: "24px 8px",
-                flex: 1,
-            }}
-        >
-            <span style={{ fontSize: 44, fontWeight: 800, color: INK, lineHeight: 1 }}>
-                {value}
-            </span>
-            <span
-                style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    letterSpacing: 1.5,
-                    color: RED,
-                    textTransform: "uppercase",
-                    marginTop: 10,
-                }}
-            >
-                {label}
-            </span>
-        </div>
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <path
+                fill={c.primary}
+                d="M2 2H10V10H2V2ZM4 4V8H8V4H4ZM14 2H22V10H14V2ZM16 4V8H20V4H16ZM2 14H10V22H2V14ZM4 16V20H8V16H4ZM14 14H17V17H14V14ZM19 14H22V19H19V14ZM14 19H17V22H14V19ZM19 21H22V22H19V21ZM17 17H19V19H17V17Z"
+            />
+        </svg>
     );
 }
 
-const StoryCard = forwardRef(function StoryCard({ participant, result }, ref) {
-    const avatarSrc = participant?.profile_photo || generateAvatarDataUrl(participant?.full_name);
-    const minutes = Math.floor((result?.time_taken || 0) / 60);
-    const seconds = String((result?.time_taken || 0) % 60).padStart(2, "0");
+const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} }, ref) {
+    const name = participant.full_name || "Player";
+    const handle = participant.instagram_handle || "player";
+    const photo = participant.profile_photo || fallbackAvatar(name);
+    const score = result.score ?? 0;
+    const totalSeconds = result.time_taken ?? 0;
+    const time = `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+
+    const stats = [
+        { label: "Pairs", value: `${result.matched_pairs ?? 0}/12` },
+        { label: "Moves", value: result.moves ?? 0 },
+        { label: "Time", value: time },
+        { label: "Level", value: `Lvl ${result.current_level ?? 1}`, accent: true },
+    ];
 
     return (
         <div
@@ -158,223 +64,229 @@ const StoryCard = forwardRef(function StoryCard({ participant, result }, ref) {
             style={{
                 width: STORY_WIDTH,
                 height: STORY_HEIGHT,
-                position: "relative",
-                overflow: "hidden",
-                background: CREAM,
-                border: `10px solid ${RED_SOFT}`,
+                background: c.bg,
+                border: `14px solid ${c.border}`,
+                borderRadius: 48,
                 boxSizing: "border-box",
-                fontFamily: "Arial, Helvetica, sans-serif",
+                overflow: "hidden",
+                position: "relative",
+                fontFamily: "'Outfit', sans-serif",
+                color: c.text,
+                padding: "55px 70px",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                padding: "80px 64px 56px",
             }}
         >
-            {/* Soft corner tints — solid, capture-safe */}
-            <div
-                style={{
-                    position: "absolute",
-                    top: -140,
-                    left: -140,
-                    width: 380,
-                    height: 380,
-                    borderRadius: "50%",
-                    background: RED_TINT,
-                }}
-            />
-            <div
-                style={{
-                    position: "absolute",
-                    bottom: -160,
-                    right: -160,
-                    width: 420,
-                    height: 420,
-                    borderRadius: "50%",
-                    background: CREAM_DEEP,
-                }}
-            />
-
-            {/* Wordmark */}
-            <div style={{ position: "relative", textAlign: "center", zIndex: 1 }}>
-                <div
-                    style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        letterSpacing: 6,
-                        color: RED,
-                        marginBottom: 8,
-                    }}
-                >
-                    VESIT PRESENTS
+            {/* Header */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 46, fontWeight: 900, color: c.primary, textTransform: "uppercase" }}>
+                    VES Campus Clash
                 </div>
-                <div
-                    style={{
-                        fontSize: 58,
-                        fontWeight: 900,
-                        letterSpacing: 1,
-                        color: INK,
-                        textTransform: "uppercase",
-                        lineHeight: 1.05,
-                    }}
-                >
-                    Campus Clash
+                <div style={{ marginTop: 8, fontSize: 20, fontWeight: 700, color: c.muted, letterSpacing: 4 }}>
+                    SCAN • PLAY • SCORE
+                </div>
+                <Badge style={{ marginTop: 22 }}>🏆 MEMORY MATCH CHAMPION</Badge>
+            </div>
+
+            {/* Score */}
+            <div style={{ marginTop: 36, textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 3 }}>
+                    Final Score
+                </div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 150, fontWeight: 800, lineHeight: 1 }}>
+                    {score}
+                </div>
+                <div style={{ fontSize: 20, color: c.muted, fontWeight: 600, marginTop: 30 }}>
+                    One Shot • One Score
                 </div>
             </div>
 
-            {/* Score block */}
-            <div style={{ marginTop: 64, textAlign: "center", position: "relative", zIndex: 1 }}>
-                <div
+            {/* Player */}
+            <div style={{ marginTop: 36, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <img
+                    src={photo}
+                    alt={name}
+                    width={130}
+                    height={130}
                     style={{
-                        fontSize: 24,
-                        fontWeight: 700,
-                        letterSpacing: 5,
-                        color: INK_SOFT,
-                        marginBottom: 6,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: `6px solid ${c.primary}`,
+                        background: c.white,
                     }}
-                >
-                    FINAL SCORE
-                </div>
-                <div
-                    style={{
-                        fontSize: 176,
-                        fontWeight: 900,
-                        lineHeight: 1,
-                        color: RED,
-                    }}
-                >
-                    {result?.score ?? 0}
-                </div>
-                <div
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginTop: 16,
-                        padding: "10px 22px",
-                        borderRadius: 999,
-                        background: "#FFFFFF",
-                        border: `1.5px solid ${RED_SOFT}`,
-                    }}
-                >
-                    <TrophyIcon size={22} color={RED} />
-                    <span style={{ fontSize: 20, fontWeight: 700, color: INK }}>
-                        Level {result?.current_level ?? 1} Cleared
-                    </span>
-                </div>
+                />
+                <div style={{ marginTop: 16, fontSize: 36, fontWeight: 800, textAlign: "center" }}>{name}</div>
+                <div style={{ marginTop: 6, fontSize: 20, fontWeight: 600, color: c.muted }}>@{handle}</div>
             </div>
 
-            {/* Stat pills */}
-            <div style={{ display: "flex", gap: 16, width: "100%", marginTop: 56, position: "relative", zIndex: 1 }}>
-                <StatPill label="Pairs" value={result?.matched_pairs ?? 0} />
-                <StatPill label="Moves" value={result?.moves ?? 0} />
-                <StatPill label="Time" value={`${minutes}:${seconds}`} />
-            </div>
+            <Divider />
 
-            {/* Participant identity */}
+            {/* Stats */}
             <div
                 style={{
-                    marginTop: 56,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 20,
-                    background: "#FFFFFF",
-                    border: `1.5px solid ${RED_SOFT}`,
-                    borderRadius: 24,
-                    padding: "20px 28px",
-                    width: "100%",
-                    boxSizing: "border-box",
-                    position: "relative",
-                    zIndex: 1,
+                    marginTop: 28,
+                    background: c.white,
+                    border: `2px solid ${c.divider}`,
+                    borderRadius: 32,
+                    padding: "30px 30px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 24,
                 }}
             >
-                <img
-                    src={avatarSrc}
-                    alt=""
-                    width={84}
-                    height={84}
-                    style={{ borderRadius: "50%", border: `2px solid ${RED}`, flexShrink: 0 }}
-                />
-                <div style={{ minWidth: 0 }}>
+                {stats.map(({ label, value, accent }) => (
+                    <div key={label} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: c.muted, letterSpacing: 2, textTransform: "uppercase" }}>
+                            {label}
+                        </div>
+                        <div
+                            style={{
+                                marginTop: 10,
+                                fontFamily: "'Space Grotesk', sans-serif",
+                                fontSize: 48,
+                                fontWeight: 800,
+                                color: accent ? c.primary : c.text,
+                            }}
+                        >
+                            {value}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <Divider />
+
+            {/* Achievement */}
+            <div
+                style={{
+                    marginTop: 28,
+                    background: `linear-gradient(135deg, ${c.primary}, ${c.primaryDark})`,
+                    borderRadius: 32,
+                    padding: "32px 36px",
+                    color: c.white,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 24,
+                }}
+            >
+                <div>
+                    <div style={{ fontSize: 30, fontWeight: 900 }}>🏆 Memory Master</div>
+                    <div style={{ marginTop: 10, fontSize: 18, lineHeight: 1.5, opacity: 0.95 }}>
+                        Completed the VES Campus Clash Memory Match Challenge.
+                    </div>
+                </div>
+                <div
+                    style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: "50%",
+                        background: "rgba(255,255,255,.18)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 56,
+                        flexShrink: 0,
+                    }}
+                >
+                    🏆
+                </div>
+            </div>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Footer */}
+            <div
+                style={{
+                    borderTop: `3px solid ${c.divider}`,
+                    paddingTop: 28,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 30,
+                }}
+            >
+                <div>
+                    <div style={{ fontSize: 34, fontWeight: 900, color: c.primary }}>Challenge Your Friends</div>
+                    <div style={{ marginTop: 12, fontSize: 18, color: c.muted, lineHeight: 1.5 }}>
+                        📱 Scan the QR Code
+                        <br />
+                        🎮 Play Memory Match
+                        <br />
+                        ❤️ Follow <strong>@ves.ac.in</strong>
+                    </div>
+                    <Badge style={{ marginTop: 16 }}>#VESCampusClash</Badge>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                     <div
                         style={{
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: INK,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            background: c.white,
+                            padding: 14,
+                            borderRadius: 20,
+                            border: `6px solid ${c.primary}`,
                         }}
                     >
-                        {participant?.full_name || "Player"}
+                        <QR size={140} />
                     </div>
-                    {participant?.instagram_handle && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                            <InstagramIcon size={20} color={RED} />
-                            <span style={{ fontSize: 22, color: INK_SOFT }}>
-                                @{participant.instagram_handle}
-                            </span>
-                        </div>
-                    )}
+                    <div style={{ fontSize: 16, fontWeight: 700, color: c.primary, textTransform: "uppercase" }}>
+                        Scan to Play
+                    </div>
                 </div>
             </div>
 
-            {/* Spacer distributes remaining space instead of shoving
-                everything below to the absolute bottom edge. */}
-            <div style={{ flex: 1, minHeight: 24 }} />
-
-            {/* QR block — placeholder pattern until wired to a real
-                play-link URL (see DummyQR's comment above for the swap). */}
             <div
                 style={{
+                    marginTop: 18,
                     display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    position: "relative",
-                    zIndex: 1,
+                    justifyContent: "space-between",
+                    color: c.muted,
+                    fontSize: 16,
+                    fontWeight: 700,
                 }}
             >
-                <div
-                    style={{
-                        padding: 14,
-                        background: "#FFFFFF",
-                        borderRadius: 20,
-                        border: `1.5px solid ${RED_SOFT}`,
-                    }}
-                >
-                    <DummyQR size={168} color={INK} />
-                </div>
+                <div>🌐 www.ves.ac.in</div>
+                <div>📷 @ves.ac.in</div>
             </div>
 
-            <div style={{ flex: 1, minHeight: 24 }} />
-
-            {/* CTA footer */}
-            <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-                <div
-                    style={{
-                        fontSize: 22,
-                        fontWeight: 700,
-                        color: INK_SOFT,
-                        marginBottom: 12,
-                    }}
-                >
-                    Scan the campus QR to play
-                </div>
-                <div
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 10,
-                        fontSize: 30,
-                        fontWeight: 900,
-                        color: RED,
-                        letterSpacing: 1,
-                    }}
-                >
-                    <InstagramIcon size={30} color={RED} /> @ves.ac.in
-                </div>
-            </div>
+            {/* Bottom strip */}
+            <div
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 14,
+                    background: "linear-gradient(90deg,#FF5A1F,#FF884F,#FF5A1F)",
+                }}
+            />
         </div>
     );
 });
+
+function Badge({ children, style }) {
+    return (
+        <div
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                background: c.primaryLight,
+                color: c.primary,
+                padding: "12px 24px",
+                borderRadius: 999,
+                fontWeight: 700,
+                fontSize: 18,
+                ...style,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function Divider() {
+    return <div style={{ marginTop: 28, height: 2, background: c.divider, borderRadius: 999 }} />;
+}
 
 export default StoryCard;
