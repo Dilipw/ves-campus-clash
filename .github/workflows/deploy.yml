@@ -1,0 +1,101 @@
+name: Deploy VES Campus Clash
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      ####################################################
+      # FRONTEND
+      ####################################################
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build React
+        working-directory: frontend
+        run: npm run build
+
+      ####################################################
+      # BACKEND
+      ####################################################
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: mbstring, xml, ctype, fileinfo, bcmath, pdo_mysql
+          coverage: none
+
+      - name: Install Composer Dependencies
+        working-directory: backend
+        run: composer install --no-dev --prefer-dist --optimize-autoloader
+
+      ####################################################
+      # SSH KEY
+      ####################################################
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      ####################################################
+      # Upload Frontend
+      ####################################################
+
+      - name: Upload Frontend
+        run: |
+          rsync -avz --delete \
+          frontend/dist/ \
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.FRONTEND_PATH }}
+
+      ####################################################
+      # Upload Laravel
+      ####################################################
+
+      - name: Upload Laravel
+        run: |
+          rsync -avz \
+          --exclude=".git" \
+          --exclude="node_modules" \
+          --exclude="vendor" \
+          --exclude=".env" \
+          backend/ \
+          ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.BACKEND_PATH }}
+
+      ####################################################
+      # Final Commands
+      ####################################################
+
+      - name: Optimize Laravel
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+
+          cd ${{ secrets.BACKEND_PATH }}
+
+          composer install --no-dev --optimize-autoloader
+
+          php artisan migrate --force
+
+          php artisan optimize
+
+          EOF
