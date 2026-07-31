@@ -1,4 +1,15 @@
 import { forwardRef } from "react";
+import {
+    Trophy,
+    QrCode,
+    Globe,
+    Camera,
+    Smartphone,
+    Gamepad2,
+    Heart,
+    Flame,
+    Award
+} from "lucide-react";
 
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
@@ -32,15 +43,8 @@ function fallbackAvatar(name = "Player") {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function QR({ size = 170 }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-            <path
-                fill={c.primary}
-                d="M2 2H10V10H2V2ZM4 4V8H8V4H4ZM14 2H22V10H14V2ZM16 4V8H20V4H16ZM2 14H10V22H2V14ZM4 16V20H8V16H4ZM14 14H17V17H14V14ZM19 14H22V19H19V14ZM14 19H17V22H14V19ZM19 21H22V22H19V21ZM17 17H19V19H17V17Z"
-            />
-        </svg>
-    );
+function QR({ size = 140 }) {
+    return <QrCode size={size} color={c.primary} strokeWidth={2.5} />;
 }
 
 const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} }, ref) {
@@ -85,19 +89,19 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 <div style={{ marginTop: 8, fontSize: 20, fontWeight: 700, color: c.muted, letterSpacing: 4 }}>
                     SCAN • PLAY • SCORE
                 </div>
-                <Badge style={{ marginTop: 22 }}>🏆 MEMORY MATCH CHAMPION</Badge>
             </div>
 
             {/* Score */}
             <div style={{ marginTop: 36, textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 3 }}>
+                <div style={{ fontSize: 30, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 3 }}>
                     Final Score
                 </div>
+
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 150, fontWeight: 800, lineHeight: 1 }}>
                     {score}
                 </div>
-                <div style={{ fontSize: 20, color: c.muted, fontWeight: 600, marginTop: 30 }}>
-                    One Shot • One Score
+                <div style={{ fontSize: 30, color: c.muted, fontWeight: 600, marginTop: 40, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <span>One Shot • One Score</span>
                 </div>
             </div>
 
@@ -171,7 +175,10 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 }}
             >
                 <div>
-                    <div style={{ fontSize: 30, fontWeight: 900 }}>🏆 Memory Master</div>
+                    <div style={{ fontSize: 30, fontWeight: 900, display: "flex", alignItems: "center", gap: 12 }}>
+                        <Award size={32} />
+                        <span>Memory Master</span>
+                    </div>
                     <div style={{ marginTop: 10, fontSize: 18, lineHeight: 1.5, opacity: 0.95 }}>
                         Completed the VES Campus Clash Memory Match Challenge.
                     </div>
@@ -185,11 +192,10 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 56,
                         flexShrink: 0,
                     }}
                 >
-                    🏆
+                    <Trophy size={56} color={c.white} />
                 </div>
             </div>
 
@@ -208,12 +214,19 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             >
                 <div>
                     <div style={{ fontSize: 34, fontWeight: 900, color: c.primary }}>Challenge Your Friends</div>
-                    <div style={{ marginTop: 12, fontSize: 18, color: c.muted, lineHeight: 1.5 }}>
-                        📱 Scan the QR Code
-                        <br />
-                        🎮 Play Memory Match
-                        <br />
-                        ❤️ Follow <strong>@ves.ac.in</strong>
+                    <div style={{ marginTop: 5, fontSize: 18, color: c.muted, lineHeight: 1.8, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Smartphone size={20} color={c.primary} />
+                            <span>Scan the QR Code</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Gamepad2 size={20} color={c.primary} />
+                            <span>Play Memory Match</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Heart size={20} color={c.primary} />
+                            <span>Follow <strong>@ves.ac.in</strong></span>
+                        </div>
                     </div>
                     <Badge style={{ marginTop: 16 }}>#VESCampusClash</Badge>
                 </div>
@@ -225,9 +238,12 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                             padding: 14,
                             borderRadius: 20,
                             border: `6px solid ${c.primary}`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                         }}
                     >
-                        <QR size={140} />
+                        <QR size={120} />
                     </div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: c.primary, textTransform: "uppercase" }}>
                         Scan to Play
@@ -245,8 +261,14 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                     fontWeight: 700,
                 }}
             >
-                <div>🌐 www.ves.ac.in</div>
-                <div>📷 @ves.ac.in</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Globe size={18} color={c.muted} />
+                    <span>www.ves.ac.in</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Camera size={18} color={c.muted} />
+                    <span>@ves.ac.in</span>
+                </div>
             </div>
 
             {/* Bottom strip */}
@@ -270,7 +292,7 @@ function Badge({ children, style }) {
             style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 10,
+                gap: 8,
                 background: c.primaryLight,
                 color: c.primary,
                 padding: "12px 24px",
