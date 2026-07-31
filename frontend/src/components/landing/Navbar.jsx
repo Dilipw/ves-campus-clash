@@ -14,10 +14,11 @@ export default function Navbar() {
 
           <div className="leading-tight">
             <p className="font-display font-bold tracking-tight text-text-hi text-[15px] sm:text-base">
-              CAMPUS CLASH
+              VES CAMPUS CLASH
             </p>
+
             <p className="font-mono text-[10px] tracking-widest text-text-lo">
-              VES · SEASON 01
+              SCAN • PLAY • SCORE
             </p>
           </div>
         </div>
