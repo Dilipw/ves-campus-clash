@@ -1,168 +1,106 @@
-# 🎮 VES Campus Clash
+# VES Campus Clash
 
-A full-stack web application developed as part of the **VES Digital & IT Team Technical Assignment**.
+## 1. Project Overview
 
-The application provides an engaging campus activity where students register, play a Memory Match Challenge, receive a performance score, and download a personalized Story Card for social media sharing.
+VES Campus Clash is a full stack web application built to deliver an interactive campus gaming experience. Participants access the platform via a QR code, register, and take part in a single timed gameplay session. The backend is responsible for enforcing game rules, calculating scores, and maintaining timing integrity, while the frontend delivers a responsive and engaging user interface across devices. At the end of each session, a personalized Story Card is generated for the participant.
 
----
+## 2. Live Demo
 
-# 🚀 Tech Stack
+**Live Application**
+https://ves.sundigit.in/
 
-## Frontend
-- React JS
+## 3. GitHub Repositories
+
+**Frontend Repository**
+https://github.com/Dilipw/ves-campus-clash-frontend
+
+**Backend Repository**
+https://github.com/Dilipw/ves-campus-clash-backend
+
+## 4. Technology Stack
+
+### Frontend
+- React 19
 - Vite
-- Tailwind CSS
-- React Router DOM
+- Tailwind CSS 4
+- React Router
 - Axios
+- React Hook Form
+- Zod
 
-## Backend
+### Backend
 - Laravel 12
-- RESTful APIs
+- PHP 8.3+
+- REST APIs
+- Service Layer Architecture
 - Laravel Validation
 
-## Database
+### Database
 - MySQL
 
----
+### Tools
+- Git
+- GitHub
+- Postman
+- Composer
+- NPM
 
-# 📁 Project Structure
+## 5. System Architecture
 
 ```
-ves-campus-clash/
+React Frontend
+      ↓
+Axios REST API
+      ↓
+Laravel Controllers
+      ↓
+Service Layer
+      ↓
+Eloquent Models
+      ↓
+MySQL Database
+```
 
-├── frontend/                 # React Application
-├── backend/                  # Laravel REST API
-├── docs/                     # Project Documentation
-│   ├── GameDesign.md
-│   ├── FeatureChecklist.md
-│   ├── Architecture.md
-│   └── Screenshots/
+The frontend is responsible for user interface and user interactions. Laravel handles business logic, validation, score calculation, timing, and database operations. Communication between the frontend and backend is performed using REST APIs that return JSON responses.
+
+## 6. Project Structure
+
+```
+frontend/
 │
-├── .gitignore
-└── README.md
+├── src/
+├── public/
+├── package.json
+└── vite.config.js
+
+backend/
+│
+├── app/
+├── routes/
+├── config/
+├── database/
+├── storage/
+└── public/
 ```
 
----
+## 7. Features
 
-# 🎯 Features
+- QR code based access to the game landing page
+- One-time participant registration
+- Single attempt gameplay session per participant
+- Server-side timing and score validation
+- Automatic Story Card generation after session completion
+- Responsive UI for desktop and mobile devices
+- Installable as a Progressive Web App (PWA) on both mobile and desktop
+- RESTful API communication between frontend and backend
 
-## Landing Page
+**Note:** The application is installable as a PWA on mobile and desktop, but it requires an active internet connection to run. Offline functionality is not currently supported.
 
-- Campaign Introduction
-- Responsive UI
-- Follow CTA
+## 8. Installation & Setup
 
----
-
-## Registration
-
-- Student Registration
-- Form Validation
-- Instagram Handle
-- Course Details
-
----
-
-## Memory Match Challenge
-
-- Two Game Levels
-- Countdown Timer
-- Score Calculation
-- Combo Rewards
-- Bonus Time Cards
-- Mobile Friendly
-
----
-
-## Result
-
-- Final Score
-- Performance Summary
-- One Attempt Policy
-
----
-
-## Story Card
-
-- Personalized Story Card
-- Download Option
-- Instagram Ready Layout
-
----
-
-# 🔄 User Flow
+### Backend
 
 ```
-QR Scan
-
-↓
-
-Landing Page
-
-↓
-
-Follow Confirmation
-
-↓
-
-Registration
-
-↓
-
-Memory Match Game
-
-↓
-
-Score Calculation
-
-↓
-
-Result
-
-↓
-
-Story Card
-
-↓
-
-Download
-```
-
----
-
-# 📱 Responsive Design
-
-The application is fully responsive and optimized for:
-
-- Desktop
-- Tablet
-- Mobile Devices
-
----
-
-# 🧩 Assumptions
-
-- QR Code redirects users to the landing page.
-- Users complete registration before accessing the game.
-- Each participant can complete only one game session.
-- Game mechanics were designed based on reasonable assumptions, as detailed game specifications were not provided.
-- Story Card is generated only after successful completion.
-
----
-
-# ⚙️ Installation
-
-## Clone Repository
-
-```bash
-git clone https://github.com/your-username/ves-campus-clash.git
-```
-
----
-
-## Backend
-
-```bash
 cd backend
 
 composer install
@@ -173,14 +111,14 @@ php artisan key:generate
 
 php artisan migrate
 
+php artisan storage:link
+
 php artisan serve
 ```
 
----
+### Frontend
 
-## Frontend
-
-```bash
+```
 cd frontend
 
 npm install
@@ -188,70 +126,58 @@ npm install
 npm run dev
 ```
 
----
+## 9. API Configuration
 
-# 🌐 Live URLs
+The frontend communicates with the backend through REST API endpoints configured via environment variables.
 
-Frontend
-
+**Backend (.env)**
 ```
-https://your-frontend-url.com
+APP_URL=http://localhost:8000
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=ves_campus_clash
+DB_USERNAME=root
+DB_PASSWORD=
 ```
 
-Backend API
-
+**Frontend (.env)**
 ```
-https://your-api-url.com
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
----
+Update these values to match your local or production environment before running the application.
 
-# 📚 Documentation
+## 10. Assumptions
 
-Project documentation is available in the **docs** folder.
+- The QR code redirects users to the landing page.
+- One participant can register only once.
+- One gameplay session is allowed per participant.
+- The Story Card is generated after the game session ends.
+- The server is the source of truth for timing and score calculation.
 
-- Game Design
-- Architecture
-- Feature Checklist
-- Screenshots
+## 11. Challenges Faced
 
----
+- Designing the complete game flow from functional requirements.
+- Synchronizing frontend and backend timer logic.
+- Preventing client-side score manipulation.
+- Implementing a one-attempt gameplay flow.
+- Maintaining responsive UI across desktop and mobile devices.
 
-# 🚧 Challenges
+## 12. Future Improvements
 
-- Designing the game flow based on limited functional specifications.
-- Maintaining a seamless experience across desktop and mobile devices.
-- Implementing a secure one-session gameplay flow.
-- Creating a clean separation between frontend and backend.
-
----
-
-# 🚀 Future Improvements
-
-- Leaderboard
-- Social Login
-- Multiple Game Modes
-- Analytics Dashboard
-- Email Confirmation
-- Achievement Badges
 - Admin Dashboard
-- Session Analytics
-- Game Difficulty Levels
+- Leaderboard
+- Analytics Dashboard
+- Social Login
+- Email Notifications
+- Achievement Badges
+- Multiple Difficulty Levels
+- Real-time Statistics
+- Offline Support for PWA
 
----
-
-# 📌 Notes
-
-This project was developed as a technical assignment for the **VES Digital & IT Team**.
-
-The implementation focuses on clean architecture, responsive user experience, maintainable code, and scalable application design.
-
----
-
-# 👨‍💻 Developed By
+## 13. Developer
 
 **Dilip Waghmare**
-
 Full Stack Software Developer
-
-Laravel | React JS | MySQL | REST APIs
+Laravel | PHP | React | Tailwind CSS | MySQL | REST APIs
