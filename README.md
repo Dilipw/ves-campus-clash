@@ -161,8 +161,6 @@ npm run dev
 
 ## 9. API Configuration
 
-The frontend communicates with the backend through REST API endpoints configured via environment variables.
-
 **Backend (.env)**
 ```
 APP_URL=http://localhost:8000
@@ -174,9 +172,20 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-**Frontend (.env)**
-```
-VITE_API_BASE_URL=http://localhost:8000/api
+### Frontend
+
+The frontend API base URL is configured in:
+
+`src/services/api.js`
+
+If you are running the project locally, update:
+
+```javascript
+// Production
+baseURL: 'https://api.sundigit.in/api/v1'
+
+// Local Development
+baseURL: 'http://localhost:8000/api/v1'
 ```
 
 Update these values to match your local or production environment before running the application.
@@ -241,8 +250,12 @@ Deployment Strategy
 ## 15. Developer
 
 **Dilip Waghmare**
+
 Full Stack Software Developer
-Laravel | PHP | React | Tailwind CSS | MySQL | REST APIs
+
+**Skills**
+
+Laravel • PHP • React • Tailwind CSS • MySQL • REST APIs
 
 The project follows a decoupled architecture where the React frontend and Laravel backend are maintained independently and communicate through REST APIs. This separation improves scalability, maintainability, and allows future integration with mobile applications.
 

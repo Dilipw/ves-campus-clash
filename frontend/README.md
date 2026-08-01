@@ -2,7 +2,7 @@
 
 This is the frontend application for **VES Campus Clash**, built with React and Vite. It handles the user interface, participant registration flow, gameplay screens, and Story Card display. It communicates with the Laravel backend through REST APIs.
 
-For the full project overview, system architecture, and backend details, see the [root README](../README.md).
+For the complete project overview, system architecture, deployment details, and backend implementation, please refer to the [root README](../README.md).
 
 ## Technology Stack
 
@@ -31,15 +31,19 @@ npm run dev
 
 The app will be available at `http://localhost:5173` by default.
 
-## Environment Variables
+## API Configuration
 
-Create a `.env` file in the `frontend/` directory using `.env.example` as a reference:
+The frontend API base URL is configured in:
 
+`src/services/api.js`
+
+If you are running the project locally, update:
+
+```javascript
+baseURL: "http://localhost:8000/api/v1"
 ```
-VITE_API_BASE_URL=http://localhost:8000/api
-```
 
-Update this value to point to your local or production backend URL.
+For production deployment, configure it with your production API endpoint.
 
 ## Available Scripts
 
@@ -86,10 +90,6 @@ frontend/
 
 This application is installable as a PWA on both mobile and desktop devices. An active internet connection is required to use the app; offline functionality is not currently supported.
 
-## Notes
-
-- This template uses [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) for Fast Refresh.
-- For type-aware linting or TypeScript support, refer to the [Vite React-TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) and [typescript-eslint](https://typescript-eslint.io).
 
 ## Contact
 

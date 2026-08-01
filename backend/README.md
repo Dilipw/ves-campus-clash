@@ -2,7 +2,7 @@
 
 This is the backend API for **VES Campus Clash**, built with Laravel. It handles participant registration, gameplay session management, server-side timing, score calculation, and Story Card generation. It exposes REST APIs consumed by the React frontend.
 
-For the full project overview, system architecture, and frontend details, see the [root README](../README.md).
+For the complete project overview, system architecture, deployment details, and backend implementation, please refer to the [root README](../README.md).
 
 ## Technology Stack
 
@@ -26,6 +26,10 @@ For the full project overview, system architecture, and frontend details, see th
 cd backend
 
 composer install
+
+php artisan config:clear
+
+php artisan cache:clear
 
 cp .env.example .env
 
