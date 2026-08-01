@@ -12,7 +12,7 @@ For the full project overview, system architecture, and backend details, see the
 - React Router
 - Axios
 - React Hook Form
-- Zod
+
 
 ## Prerequisites
 

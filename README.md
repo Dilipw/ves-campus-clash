@@ -26,7 +26,7 @@ https://github.com/Dilipw/ves-campus-clash-backend
 - React Router
 - Axios
 - React Hook Form
-- Zod
+
 
 ### Backend
 - Laravel 12
@@ -48,17 +48,28 @@ https://github.com/Dilipw/ves-campus-clash-backend
 ## 5. System Architecture
 
 ```
-React Frontend
-      ↓
-Axios REST API
-      ↓
-Laravel Controllers
-      ↓
-Service Layer
-      ↓
-Eloquent Models
-      ↓
-MySQL Database
+                User
+                  │
+                  ▼
+         React Frontend (Vite)
+                  │
+             Axios REST APIs
+                  │
+                  ▼
+         Laravel 12 Backend
+                  │
+      ┌───────────┴───────────┐
+      │                       │
+ Controllers           Request Validation
+      │
+      ▼
+ Service Layer
+      │
+      ▼
+ Eloquent ORM
+      │
+      ▼
+     MySQL
 ```
 
 The frontend is responsible for user interface and user interactions. Laravel handles business logic, validation, score calculation, timing, and database operations. Communication between the frontend and backend is performed using REST APIs that return JSON responses.
@@ -195,9 +206,40 @@ Update these values to match your local or production environment before running
 - Multiple Difficulty Levels
 - Real-time Statistics
 - Offline Support for PWA
+- Docker Deployment
+- CI/CD Pipeline
+- Redis Caching
+
+
+## 13. Deployment
+
+Hosting Platform
+
+- Shared Hosting
+
+Deployment Strategy
+
+- GitHub Version Control
+- Git over SSH
+- Manual Deployment using git pull
+- Composer Dependency Management
+- React Production Build using Vite
+- HTTPS Enabled
+
+## 13. Security
+
+- Server-side score calculation
+- Server-side timer validation
+- Input validation using Laravel Form Requests
+- REST API validation
+- One gameplay session per participant
+- UUID-based game sessions
+
 
 ## 13. Developer
 
 **Dilip Waghmare**
 Full Stack Software Developer
 Laravel | PHP | React | Tailwind CSS | MySQL | REST APIs
+
+The project follows a decoupled architecture where the React frontend and Laravel backend are maintained independently and communicate through REST APIs. This separation improves scalability, maintainability, and allows future integration with mobile applications.
