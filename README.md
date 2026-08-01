@@ -140,6 +140,8 @@ cp .env.example .env
 
 php artisan key:generate
 
+# Configure your database credentials in the .env file
+
 php artisan migrate
 
 php artisan storage:link
@@ -226,7 +228,7 @@ Deployment Strategy
 - React Production Build using Vite
 - HTTPS Enabled
 
-## 13. Security
+## 14. Security
 
 - Server-side score calculation
 - Server-side timer validation
@@ -236,10 +238,20 @@ Deployment Strategy
 - UUID-based game sessions
 
 
-## 13. Developer
+## 15. Developer
 
 **Dilip Waghmare**
 Full Stack Software Developer
 Laravel | PHP | React | Tailwind CSS | MySQL | REST APIs
 
 The project follows a decoupled architecture where the React frontend and Laravel backend are maintained independently and communicate through REST APIs. This separation improves scalability, maintainability, and allows future integration with mobile applications.
+
+## 16. Contact
+
+If you have any questions regarding the project, deployment, or setup, please feel free to contact me.
+
+**Developer:** Dilip Waghmare
+
+**Portfolio:** https://dilipdeveloper.in
+
+**Mobile / WhatsApp:** +91 70571 75627

@@ -31,6 +31,8 @@ cp .env.example .env
 
 php artisan key:generate
 
+# Configure your database credentials in the .env file
+
 php artisan migrate
 
 php artisan storage:link
