@@ -134,3 +134,13 @@ php artisan test
 
 - Ensure the database exists and credentials in `.env` are correct before running migrations.
 - Run `php artisan storage:link` after every fresh setup to serve uploaded files correctly.
+
+## Contact
+
+If you have any questions regarding the project, deployment, or setup, please feel free to contact me.
+
+**Developer:** Dilip Waghmare
+
+**Portfolio:** https://dilipdeveloper.in
+
+**Mobile / WhatsApp:** +91 70571 75627

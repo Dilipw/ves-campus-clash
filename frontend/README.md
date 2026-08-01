@@ -90,3 +90,13 @@ This application is installable as a PWA on both mobile and desktop devices. An 
 
 - This template uses [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) for Fast Refresh.
 - For type-aware linting or TypeScript support, refer to the [Vite React-TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) and [typescript-eslint](https://typescript-eslint.io).
+
+## Contact
+
+If you have any questions regarding the project, deployment, or setup, please feel free to contact me.
+
+**Developer:** Dilip Waghmare
+
+**Portfolio:** https://dilipdeveloper.in
+
+**Mobile / WhatsApp:** +91 70571 75627
