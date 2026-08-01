@@ -2,7 +2,8 @@ import { forwardRef } from "react";
 import {
     Trophy,
     QrCode,
-    Award
+    Award,
+    CheckCircle2
 } from "lucide-react";
 
 export const STORY_WIDTH = 1080;
@@ -20,6 +21,41 @@ const c = {
     white: "#FFFFFF",
     success: "#0F9D58",
 };
+
+/**
+ * ---------------------------------------------------------------------
+ * LEVEL CONFIG — the ONE place you need to edit if pair counts change.
+ * ---------------------------------------------------------------------
+ * Each entry is the number of pairs that belong to THAT level only.
+ * The API's `matched_pairs` / `current_level` fields don't tell us the
+ * denominator on their own, so we derive it here instead of hardcoding
+ * a single "/12" everywhere — that was the source of the confusing UI
+ * (e.g. showing "7/12" when the player had actually cleared all 7
+ * pairs available in Level 1).
+ *
+ * Update the numbers below to match your real game design, e.g.:
+ *   LEVEL_PAIRS = { 1: 8, 2: 10, 3: 12 }
+ * ---------------------------------------------------------------------
+ */
+const LEVEL_PAIRS = {
+    1: 8,   // pairs in Level 1
+    2: 10,  // pairs added in Level 2 (on top of Level 1)
+    // 3: 12, // add more levels here as needed
+};
+
+const LEVEL_LABELS = {
+    1: "Memory Rookie",
+    2: "Memory Master",
+    3: "Memory Legend",
+};
+
+function totalPairsUpToLevel(level) {
+    let total = 0;
+    for (let i = 1; i <= level; i++) {
+        total += LEVEL_PAIRS[i] ?? 0;
+    }
+    return total;
+}
 
 function fallbackAvatar(name = "Player") {
     const initials =
@@ -49,11 +85,18 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
     const totalSeconds = result.time_taken ?? 0;
     const time = `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
 
+    const currentLevel = result.current_level ?? 1;
+    const matchedPairs = result.matched_pairs ?? 0;
+    const totalPairs = totalPairsUpToLevel(currentLevel);
+    const isPerfect = totalPairs > 0 && matchedPairs >= totalPairs;
+    const levelLabel = LEVEL_LABELS[currentLevel] || `Level ${currentLevel} Master`;
+    const levelWord = currentLevel > 1 ? `Levels 1–${currentLevel}` : "Level 1";
+
     const stats = [
-        { label: "Pairs", value: `${result.matched_pairs ?? 0}/12` },
+        { label: "Pairs", value: `${matchedPairs}/${totalPairs}` },
         { label: "Moves", value: result.moves ?? 0 },
         { label: "Time", value: time },
-        { label: "Level", value: `Lvl ${result.current_level ?? 1}`, accent: true },
+        { label: "Level", value: `Lvl ${currentLevel}`, accent: true },
     ];
 
     return (
@@ -83,10 +126,32 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: c.muted, letterSpacing: 5 }}>
                     SCAN • PLAY • SCORE
                 </div>
+
+                {/* NEW: unambiguous "what did they actually finish" pill.
+                    This is the single clearest signal on the card for what
+                    stage of the game the result belongs to. */}
+                <div
+                    style={{
+                        marginTop: 18,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        background: c.success,
+                        color: c.white,
+                        padding: "10px 22px",
+                        borderRadius: 999,
+                        fontSize: 22,
+                        fontWeight: 800,
+                        letterSpacing: 1,
+                    }}
+                >
+                    <CheckCircle2 size={22} />
+                    <span>{levelWord} Completed</span>
+                </div>
             </div>
 
             {/* Score – tighter gap + larger fonts */}
-            <div style={{ marginTop: 32, textAlign: "center" }}>
+            <div style={{ marginTop: 28, textAlign: "center" }}>
                 <div style={{ fontSize: 32, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 4 }}>
                     Final Score
                 </div>
@@ -98,7 +163,7 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
             </div>
 
             {/* Player */}
-            <div style={{ marginTop: 32, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 50 }}>
+            <div style={{ marginTop: 28, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 40 }}>
                 <img
                     src={photo}
                     alt={name}
@@ -147,6 +212,13 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                         >
                             {value}
                         </div>
+                        {/* NEW: tiny sub-label under Pairs so "7/7" doesn't
+                            read as "only 7 out of some bigger unknown number" */}
+                        {label === "Pairs" && (
+                            <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: isPerfect ? c.success : c.muted }}>
+                                {isPerfect ? "All pairs found" : `${levelWord} total`}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -170,10 +242,10 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 <div>
                     <div style={{ fontSize: 32, fontWeight: 900, display: "flex", alignItems: "center", gap: 12 }}>
                         <Award size={34} />
-                        <span>Memory Master</span>
+                        <span>{levelLabel}</span>
                     </div>
                     <div style={{ marginTop: 8, fontSize: 20, lineHeight: 1.5, opacity: 0.95 }}>
-                        Completed the VES Campus Clash Memory Match Challenge.
+                        Completed {levelWord} of the VES Campus Clash Memory Match Challenge.
                     </div>
                 </div>
                 <div
