@@ -5,6 +5,12 @@ import {
     Award,
     CheckCircle2
 } from "lucide-react";
+import {
+    totalPairsThroughLevel,
+    levelWordForLevel,
+    isPerfectClear,
+    ACHIEVEMENT_LABELS,
+} from "../config/gameConfig";
 
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
@@ -22,40 +28,9 @@ const c = {
     success: "#0F9D58",
 };
 
-/**
- * ---------------------------------------------------------------------
- * LEVEL CONFIG — the ONE place you need to edit if pair counts change.
- * ---------------------------------------------------------------------
- * Each entry is the number of pairs that belong to THAT level only.
- * The API's `matched_pairs` / `current_level` fields don't tell us the
- * denominator on their own, so we derive it here instead of hardcoding
- * a single "/12" everywhere — that was the source of the confusing UI
- * (e.g. showing "7/12" when the player had actually cleared all 7
- * pairs available in Level 1).
- *
- * Update the numbers below to match your real game design, e.g.:
- *   LEVEL_PAIRS = { 1: 8, 2: 10, 3: 12 }
- * ---------------------------------------------------------------------
- */
-const LEVEL_PAIRS = {
-    1: 8,   // pairs in Level 1
-    2: 10,  // pairs added in Level 2 (on top of Level 1)
-    // 3: 12, // add more levels here as needed
-};
-
-const LEVEL_LABELS = {
-    1: "Memory Rookie",
-    2: "Memory Master",
-    3: "Memory Legend",
-};
-
-function totalPairsUpToLevel(level) {
-    let total = 0;
-    for (let i = 1; i <= level; i++) {
-        total += LEVEL_PAIRS[i] ?? 0;
-    }
-    return total;
-}
+// Grid/timer details (4×4 @ 45s, 5×4 @ 35s) live in ../config/gameConfig
+// alongside pair counts, so this file and ResultPage.jsx can never drift
+// out of sync on what a "Level 1" or "Level 2" clear actually means.
 
 function fallbackAvatar(name = "Player") {
     const initials =
@@ -87,10 +62,10 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
 
     const currentLevel = result.current_level ?? 1;
     const matchedPairs = result.matched_pairs ?? 0;
-    const totalPairs = totalPairsUpToLevel(currentLevel);
-    const isPerfect = totalPairs > 0 && matchedPairs >= totalPairs;
-    const levelLabel = LEVEL_LABELS[currentLevel] || `Level ${currentLevel} Master`;
-    const levelWord = currentLevel > 1 ? `Levels 1–${currentLevel}` : "Level 1";
+    const totalPairs = totalPairsThroughLevel(currentLevel);
+    const isPerfect = isPerfectClear(matchedPairs, currentLevel);
+    const levelLabel = ACHIEVEMENT_LABELS[currentLevel] || `Level ${currentLevel} Master`;
+    const levelWord = levelWordForLevel(currentLevel);
 
     const stats = [
         { label: "Pairs", value: `${matchedPairs}/${totalPairs}` },

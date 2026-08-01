@@ -1,4 +1,5 @@
 import React from "react";
+import { LEVELS, TOTAL_GAME_SECONDS } from "../config/gameConfig";
 
 export default function GameRulesModal({ isOpen, onClose }) {
   if (!isOpen) return null;
@@ -38,34 +39,38 @@ export default function GameRulesModal({ isOpen, onClose }) {
               01. Objective & Duration
             </h3>
             <p className="text-paper-lo">
-              Identify and match identical card pairs before the timer expires. Complete both Level 1 and Level 2 in a single continuous <strong>2 to 4-minute session</strong> to generate your shareable Story Card.
+              Identify and match identical card pairs before the timer expires. Complete both Level 1 and Level 2 in a single continuous session —{" "}
+              <strong>{TOTAL_GAME_SECONDS} seconds total</strong> across both levels — to generate your shareable Story Card.
             </p>
           </div>
 
-          {/* Section 2: Level Progression */}
+          {/* Section 2: Level Progression — numbers pulled from gameConfig so
+              this can never say something different from the actual game. */}
           <div className="space-y-2">
             <h3 className="font-display text-h3 uppercase text-paper-hi border-b border-paper-line/50 pb-1">
               02. Level Structure
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-              <div className="bg-white/60 border border-paper-line p-3 rounded-card">
-                <span className="font-mono text-volt-dim font-bold text-small block uppercase">
-                  Level 1 — Warmup
-                </span>
-                <p className="text-paper-lo text-[13px] mt-1">
-                  Smaller grid of pairs with relaxed timer limits. Designed to let you build confidence and secure your initial score.
-                </p>
-              </div>
-
-              <div className="bg-white/60 border border-paper-line p-3 rounded-card">
-                <span className="font-mono text-punch font-bold text-small block uppercase">
-                  Level 2 — Clash Challenge
-                </span>
-                <p className="text-paper-lo text-[13px] mt-1">
-                  Automatically unlocks after clearing Level 1. Features a larger card grid, faster countdown timer, and tighter decision windows.
-                </p>
-              </div>
+              {LEVELS.map((level, i) => (
+                <div key={level.id} className="bg-white/60 border border-paper-line p-3 rounded-card">
+                  <span
+                    className={`font-mono font-bold text-small block uppercase ${
+                      i === 0 ? "text-volt-dim" : "text-punch"
+                    }`}
+                  >
+                    {level.shortLabel} — {level.name}
+                  </span>
+                  <p className="text-paper-lo text-[13px] mt-1">
+                    {level.grid.rows} × {level.grid.cols} grid · {level.pairs} pairs to match ·{" "}
+                    {level.timerSeconds}-second timer
+                    {i > 0 && " · unlocks automatically after clearing the previous level"}.
+                  </p>
+                </div>
+              ))}
             </div>
+            <p className="text-paper-lo text-[13px] mt-2">
+              Progress continues automatically between levels — no restart, no re-registration.
+            </p>
           </div>
 
           {/* Section 3: Scoring & Mechanics */}
@@ -87,6 +92,9 @@ export default function GameRulesModal({ isOpen, onClose }) {
               <li>
                 <strong className="text-punch">⚡ Power-Up Pair:</strong> Matching special golden Power-Up cards instantly adds extra seconds to your active countdown timer.
               </li>
+              <li>
+                <strong className="text-paper-hi">Moves:</strong> Every time you flip two cards, one move is counted — fewer moves means sharper memory and a better efficiency read on your run.
+              </li>
             </ul>
           </div>
 
@@ -96,7 +104,18 @@ export default function GameRulesModal({ isOpen, onClose }) {
               04. Completion & Rewards
             </h3>
             <p className="text-paper-lo">
-              If the countdown timer reaches zero before all pairs are matched, the game ends immediately and computes your current score. Upon clearing Level 2, your custom <strong>VES Campus Clash Story Card</strong> is generated with your name, score, and rank rank ready for Instagram sharing.
+              The game ends the moment all required pairs are matched, or the countdown timer reaches zero — whichever comes first. Your score is calculated and saved automatically at that instant. Clearing Level 2 unlocks your custom{" "}
+              <strong>VES Campus Clash Story Card</strong> — your name, score, and stats, ready to share on Instagram.
+            </p>
+          </div>
+
+          {/* Section 5: Fair Play */}
+          <div className="space-y-2">
+            <h3 className="font-display text-h3 uppercase text-paper-hi border-b border-paper-line/50 pb-1">
+              05. One Shot, One Score
+            </h3>
+            <p className="text-paper-lo">
+              One registration, one gameplay session, one final score — no replays. Every result is validated and recorded server-side, so play it exactly as you mean to submit it.
             </p>
           </div>
 

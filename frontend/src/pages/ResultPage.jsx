@@ -14,6 +14,7 @@ import {
 import { gameApi } from "../services/api";
 import ProtectedRoute, { STATUS } from "../components/ProtectedRoute";
 import StoryCard, { STORY_WIDTH, STORY_HEIGHT } from "../components/StoryCard";
+import { formatClock, totalPairsThroughLevel } from "../config/gameConfig";
 
 // Caption used everywhere we hand the image off to Instagram / native share.
 // Keep the handle first so it survives Instagram's caption truncation.
@@ -241,9 +242,9 @@ function ResultView({ sessionUuid }) {
   // ------------------------------------------------------------------
   // Ready state
   // ------------------------------------------------------------------
-  const { score, matched_pairs, moves, time_taken } = result.result;
-  const minutes = Math.floor((time_taken ?? 0) / 60);
-  const seconds = String((time_taken ?? 0) % 60).padStart(2, "0");
+  const { score, matched_pairs, moves, time_taken, current_level } = result.result;
+  const time = formatClock(time_taken);
+  const totalPairs = totalPairsThroughLevel(current_level ?? 1);
 
   return (
     <div className="max-w-md mx-auto px-4 py-10 text-center">
@@ -280,9 +281,9 @@ function ResultView({ sessionUuid }) {
           gap: 8,
         }}
       >
-        <StatChip icon={<Grid2x2 size={14} />} label={`${matched_pairs} pairs`} />
+        <StatChip icon={<Grid2x2 size={14} />} label={`${matched_pairs}/${totalPairs} pairs`} />
         <StatChip icon={<MousePointerClick size={14} />} label={`${moves} moves`} />
-        <StatChip icon={<Timer size={14} />} label={`${minutes}:${seconds}`} />
+        <StatChip icon={<Timer size={14} />} label={time} />
       </div>
 
       {/* Story card preview */}
