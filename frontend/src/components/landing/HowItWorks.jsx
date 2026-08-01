@@ -1,5 +1,6 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { motion } from "framer-motion";
+import GameRulesModal from "../GameRulesModal";
 
 const levels = [
   { n: "01", title: "Follow", copy: "Follow @ves.ac.in on Instagram." },
@@ -31,6 +32,8 @@ function StepNode({ lvl, index }) {
 }
 
 export default function HowItWorks() {
+  const [showRulesModal, setShowRulesModal] = useState(false);
+
   return (
     <section className="px-5 sm:px-6 py-16 sm:py-20">
       <div className="max-w-5xl mx-auto">
@@ -59,7 +62,7 @@ export default function HowItWorks() {
           ))}
         </div>
 
-        {/* ---------- Mobile: vertical flow, line grows downward between nodes ---------- */}
+
         <div className="sm:hidden mt-10">
           {levels.map((lvl, i) => (
             <div key={lvl.n} className="relative flex gap-4 pb-8 last:pb-0">
@@ -92,7 +95,20 @@ export default function HowItWorks() {
             </div>
           ))}
         </div>
+
+        {/* ---------- Rules trigger — sits below the flow, opens the full
+            rulebook modal without cluttering the four-step summary above ---------- */}
+        <div className="mt-12 sm:mt-14 flex justify-center">
+          <button
+            onClick={() => setShowRulesModal(true)}
+            className="font-mono text-[13px] font-medium text-volt uppercase tracking-wide hover:text-text-hi transition cursor-pointer"
+          >
+            View full rules →
+          </button>
+        </div>
       </div>
+
+      <GameRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </section>
   );
 }

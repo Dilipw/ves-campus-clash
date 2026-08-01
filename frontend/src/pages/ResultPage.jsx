@@ -277,7 +277,6 @@ function ResultView({ sessionUuid }) {
       >
         <StatChip icon={<Grid2x2 size={14} />} label={`${matched_pairs}/${totalPairs} pairs`} />
         <StatChip icon={<MousePointerClick size={14} />} label={`${moves} moves`} />
-        <StatChip icon={<Timer size={14} />} label={time} />
       </div>
 
       {/* Story card preview */}
