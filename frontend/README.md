@@ -1,16 +1,76 @@
-# React + Vite
+# VES Campus Clash - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend application for **VES Campus Clash**, built with React and Vite. It handles the user interface, participant registration flow, gameplay screens, and Story Card display. It communicates with the Laravel backend through REST APIs.
 
-Currently, two official plugins are available:
+For the full project overview, system architecture, and backend details, see the [root README](../README.md).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Technology Stack
 
-## React Compiler
+- React 19
+- Vite
+- Tailwind CSS 4
+- React Router
+- Axios
+- React Hook Form
+- Zod
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 18+
+- NPM
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Installation & Setup
+
+```
+cd frontend
+
+npm install
+
+npm run dev
+```
+
+The app will be available at `http://localhost:5173` by default.
+
+## Environment Variables
+
+Create a `.env` file in the `frontend/` directory using `.env.example` as a reference:
+
+```
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+Update this value to point to your local or production backend URL.
+
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Starts the development server with hot module replacement |
+| `npm run build` | Builds the app for production |
+| `npm run preview` | Locally preview the production build |
+| `npm run lint` | Runs ESLint checks |
+
+## Project Structure
+
+```
+frontend/
+│
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── hooks/
+│   ├── services/
+│   └── utils/
+├── public/
+├── package.json
+└── vite.config.js
+```
+
+## Progressive Web App
+
+This application is installable as a PWA on both mobile and desktop devices. An active internet connection is required to use the app; offline functionality is not currently supported.
+
+## Notes
+
+- This template uses [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) for Fast Refresh.
+- For type-aware linting or TypeScript support, refer to the [Vite React-TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) and [typescript-eslint](https://typescript-eslint.io).
