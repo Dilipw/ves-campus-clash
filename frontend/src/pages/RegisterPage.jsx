@@ -7,8 +7,7 @@ import GameRulesModal from "../components/GameRulesModal";
 // Shared input styling so every field looks identical and error state
 // is applied in exactly one place instead of being repeated per-input.
 const fieldClass = (hasError) =>
-  `w-full bg-white border rounded-card px-3 py-2 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition-colors ${
-    hasError ? "border-punch focus:ring-punch/50" : "border-paper-line focus:ring-punch/60"
+  `w-full bg-white border rounded-card px-3 py-2 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition-colors ${hasError ? "border-punch focus:ring-punch/50" : "border-paper-line focus:ring-punch/60"
   }`;
 
 const labelClass = "block font-display text-[12px] uppercase tracking-wider mb-1 font-bold text-paper-hi";
@@ -19,6 +18,13 @@ function FieldError({ message }) {
 }
 
 export default function RegisterPage() {
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, []);
   const navigate = useNavigate();
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
