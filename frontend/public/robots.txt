@@ -1,0 +1,8 @@
+User-agent: *
+
+Allow: /
+
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://ves.sundigit.in/sitemap.xml
