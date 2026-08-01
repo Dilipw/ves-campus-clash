@@ -461,7 +461,7 @@ export default function RegisterPage() {
                         className="mt-0.5 h-4 w-4 rounded border-paper-line text-punch focus:ring-punch cursor-pointer shrink-0"
                       />
                       <span className="text-small text-paper-hi leading-tight">
-                        I confirm that I follow the official <strong>@ves_campus_clash</strong> Instagram page.{" "}
+                        I confirm that I follow the official <strong>@ves.ac.in</strong> Instagram page.{" "}
                         <span className="text-punch">*</span>
                       </span>
                     </label>
