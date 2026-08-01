@@ -55,16 +55,32 @@ Update this value to point to your local or production backend URL.
 ```
 frontend/
 │
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── hooks/
-│   ├── services/
-│   └── utils/
+├── dist/
 ├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── config/
+│   ├── context/
+│   ├── pages/
+│   ├── routes/
+│   ├── services/
+│   ├── styles/
+│   ├── utils/
+│   └── App.css
 ├── package.json
 └── vite.config.js
 ```
+
+- **assets/** – Images, icons, and static media.
+- **components/** – Reusable UI components.
+- **config/** – App-level configuration (API base URL, constants, etc.).
+- **context/** – React Context providers for global state.
+- **pages/** – Route-level page components.
+- **routes/** – Route definitions and navigation setup.
+- **services/** – API call handlers using Axios.
+- **styles/** – Global and shared styling files.
+- **utils/** – Helper functions and utilities.
 
 ## Progressive Web App
 

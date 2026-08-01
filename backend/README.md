@@ -87,20 +87,33 @@ Controllers handle incoming requests and delegate business logic to the service 
 backend/
 │
 ├── app/
+│   ├── Exceptions/
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   └── Requests/
+│   │   ├── Requests/
+│   │   └── Resources/
 │   ├── Models/
+│   ├── Providers/
 │   ├── Services/
-│   └── Providers/
-├── routes/
-│   └── api.php
+│   └── Traits/
+├── bootstrap/
 ├── config/
 ├── database/
 │   └── migrations/
+├── routes/
+│   └── api.php
 ├── storage/
 └── public/
 ```
+
+- **Exceptions/** – Custom exception classes and centralized error handling.
+- **Http/Controllers/** – Handles incoming API requests.
+- **Http/Requests/** – Form request classes for validation.
+- **Http/Resources/** – API resource classes for shaping JSON responses.
+- **Models/** – Eloquent models representing database tables.
+- **Providers/** – Service providers for bootstrapping application services.
+- **Services/** – Business logic, score calculation, timing, and Story Card generation.
+- **Traits/** – Reusable shared logic across models/controllers.
 
 ## Key Business Rules
 

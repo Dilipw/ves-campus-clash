@@ -68,15 +68,35 @@ The frontend is responsible for user interface and user interactions. Laravel ha
 ```
 frontend/
 │
-├── src/
+├── dist/
 ├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── config/
+│   ├── context/
+│   ├── pages/
+│   ├── routes/
+│   ├── services/
+│   ├── styles/
+│   ├── utils/
+│   └── App.css
 ├── package.json
 └── vite.config.js
 
 backend/
 │
 ├── app/
-├── routes/
+│   ├── Exceptions/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   ├── Requests/
+│   │   └── Resources/
+│   ├── Models/
+│   ├── Providers/
+│   ├── Services/
+│   └── Traits/
+├── bootstrap/
 ├── config/
 ├── database/
 ├── storage/
