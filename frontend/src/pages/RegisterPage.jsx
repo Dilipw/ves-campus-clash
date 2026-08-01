@@ -4,6 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { participantApi, gameApi } from "../services/api";
 import GameRulesModal from "../components/GameRulesModal";
 
+// Shared input styling so every field looks identical and error state
+// is applied in exactly one place instead of being repeated per-input.
+const fieldClass = (hasError) =>
+  `w-full bg-white border rounded-card px-3 py-2 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition-colors ${
+    hasError ? "border-punch focus:ring-punch/50" : "border-paper-line focus:ring-punch/60"
+  }`;
+
+const labelClass = "block font-display text-[12px] uppercase tracking-wider mb-1 font-bold text-paper-hi";
+
+function FieldError({ message }) {
+  if (!message) return null;
+  return <p className="font-mono text-[11px] text-punch mt-1">{message}</p>;
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -142,299 +156,338 @@ export default function RegisterPage() {
   // Avoid flashing the form while we confirm there's no active session
   if (checkingSession) {
     return (
-      <div className="w-full h-[60vh] flex items-center justify-center">
+      <div className="min-h-screen w-full bg-black flex items-center justify-center">
         <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 font-body">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
+    <div className="min-h-screen w-full bg-black px-4 sm:px-6 py-5 sm:py-5 font-body">
+      <div className="max-w-5xl mx-auto">
 
-        {/* Registration Form */}
-        <div className="lg:col-span-7 order-1 lg:order-2 w-full">
-          <div className="bg-paper text-paper-hi rounded-ticket shadow-ticket p-5 sm:p-8 border border-paper-line relative w-full">
-
-            <header className="mb-5 sm:mb-6 border-b border-paper-line pb-4">
-              <div className="flex items-center justify-between mb-2 gap-2">
-                <span className="font-mono text-[11px] sm:text-small uppercase text-punch font-bold tracking-widest">
-                  // VES CAMPUS CLASH
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-mono text-[11px] sm:text-small text-paper-lo shrink-0">
-                  <span className="h-2 w-2 rounded-full bg-punch animate-pulse" />
-                  ENTRY FORM
-                </span>
-              </div>
-              <h1 className="font-display text-2xl sm:text-h2 uppercase tracking-tight leading-none">
-                Student Registration
-              </h1>
-              <p className="text-paper-lo text-small mt-1.5">
-                Fill in your details to unlock the game.
-              </p>
-            </header>
-
-            {apiError && (
-              <div
-                role="alert"
-                className="mb-5 flex items-start gap-2.5 p-3.5 bg-punch/10 border border-punch/40 rounded-card text-punch text-small font-mono"
-              >
-                <span className="shrink-0 mt-0.5">⚠</span>
-                <span className="leading-snug">{apiError}</span>
-              </div>
-            )}
-
-            <form id="registration-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 sm:items-start">
-                <div className="sm:col-span-8">
-                  <label htmlFor="full_name" className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Full Name <span className="text-punch">*</span>
-                  </label>
-                  <input
-                    id="full_name"
-                    type="text"
-                    placeholder="e.g. Rahul Sharma"
-                    aria-invalid={errors.full_name ? "true" : "false"}
-                    {...register("full_name", { required: "Full name is required." })}
-                    className={`w-full bg-white/80 border rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition ${
-                      errors.full_name
-                        ? "border-punch focus:ring-punch/60"
-                        : "border-paper-line focus:ring-punch"
-                    }`}
-                  />
-                  {errors.full_name && (
-                    <p className="font-mono text-[11px] sm:text-small text-punch mt-1">{errors.full_name.message}</p>
-                  )}
-                </div>
-
-                <div className="sm:col-span-4">
-                  <label className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Photo <span className="text-paper-lo font-normal normal-case">(optional)</span>
-                  </label>
-                  <div className="flex items-center gap-2 bg-white/80 border border-paper-line rounded-card p-1.5 pl-1.5 pr-2.5 h-[42px]">
-                    {photoPreview ? (
-                      <img src={photoPreview} alt="Preview" className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-paper-line" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-paper-line/30 flex items-center justify-center text-small shrink-0">
-                        📷
-                      </div>
-                    )}
-                    <label className="text-[11px] sm:text-small font-display uppercase tracking-wider text-ink hover:text-punch cursor-pointer truncate font-bold flex-1">
-                      {photoPreview ? "Change" : "Upload"}
-                      <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-                    </label>
-                    {photoPreview && (
-                      <button
-                        type="button"
-                        onClick={removePhoto}
-                        aria-label="Remove photo"
-                        className="text-paper-lo hover:text-punch shrink-0 text-small leading-none"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label htmlFor="institute" className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Institute <span className="text-punch">*</span>
-                  </label>
-                  <input
-                    id="institute"
-                    type="text"
-                    placeholder="e.g. VESIT"
-                    aria-invalid={errors.institute ? "true" : "false"}
-                    {...register("institute", { required: "Institute is required." })}
-                    className={`w-full bg-white/80 border rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition ${
-                      errors.institute
-                        ? "border-punch focus:ring-punch/60"
-                        : "border-paper-line focus:ring-punch"
-                    }`}
-                  />
-                  {errors.institute && (
-                    <p className="font-mono text-[11px] sm:text-small text-punch mt-1">{errors.institute.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="course" className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Course <span className="text-punch">*</span>
-                  </label>
-                  <input
-                    id="course"
-                    type="text"
-                    placeholder="e.g. B.E. CS / B.Sc IT"
-                    aria-invalid={errors.course ? "true" : "false"}
-                    {...register("course", { required: "Course is required." })}
-                    className={`w-full bg-white/80 border rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition ${
-                      errors.course
-                        ? "border-punch focus:ring-punch/60"
-                        : "border-paper-line focus:ring-punch"
-                    }`}
-                  />
-                  {errors.course && (
-                    <p className="font-mono text-[11px] sm:text-small text-punch mt-1">{errors.course.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label htmlFor="academic_year" className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Academic Year <span className="text-punch">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="academic_year"
-                      aria-invalid={errors.academic_year ? "true" : "false"}
-                      {...register("academic_year", { required: "Academic year is required." })}
-                      className={`w-full bg-white/80 border rounded-card p-2.5 pr-8 text-body text-paper-hi focus:outline-none focus:ring-2 focus:bg-white transition appearance-none cursor-pointer ${
-                        errors.academic_year
-                          ? "border-punch focus:ring-punch/60"
-                          : "border-paper-line focus:ring-punch"
-                      }`}
-                    >
-                      <option value="">Select Year</option>
-                      <option value="FY">First Year (FY)</option>
-                      <option value="SY">Second Year (SY)</option>
-                      <option value="TY">Third Year (TY)</option>
-                      <option value="Final">Final Year</option>
-                    </select>
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-paper-lo text-small">▼</span>
-                  </div>
-                  {errors.academic_year && (
-                    <p className="font-mono text-[11px] sm:text-small text-punch mt-1">{errors.academic_year.message}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="instagram_handle" className="block font-display text-small uppercase tracking-wider mb-1.5 font-bold">
-                    Instagram Handle <span className="text-punch">*</span>
-                  </label>
-                  <input
-                    id="instagram_handle"
-                    type="text"
-                    placeholder="@username"
-                    aria-invalid={errors.instagram_handle ? "true" : "false"}
-                    {...register("instagram_handle", { required: "Instagram username is required." })}
-                    className={`w-full bg-white/80 border rounded-card p-2.5 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition ${
-                      errors.instagram_handle
-                        ? "border-punch focus:ring-punch/60"
-                        : "border-paper-line focus:ring-punch"
-                    }`}
-                  />
-                  {errors.instagram_handle && (
-                    <p className="font-mono text-[11px] sm:text-small text-punch mt-1">{errors.instagram_handle.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-1">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    aria-invalid={errors.follow_confirmed ? "true" : "false"}
-                    {...register("follow_confirmed", {
-                      required: "Please confirm that you followed the Instagram page.",
-                    })}
-                    className="mt-0.5 h-4 w-4 rounded border-paper-line text-punch focus:ring-punch cursor-pointer shrink-0"
-                  />
-                  <span className="text-small text-paper-hi font-body leading-tight">
-                    I confirm that I follow the official <strong>@ves_campus_clash</strong> Instagram page. <span className="text-punch">*</span>
-                  </span>
-                </label>
-                {errors.follow_confirmed && (
-                  <p className="font-mono text-[11px] sm:text-small text-punch mt-1.5">{errors.follow_confirmed.message}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full mt-5 bg-punch hover:bg-punch-dim disabled:opacity-50 disabled:cursor-not-allowed text-text-hi rounded-pill py-3.5 font-display text-base sm:text-h3 tracking-wide uppercase transition-all transform active:scale-[0.98] shadow-soft cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  "Continue to Game →"
-                )}
-              </button>
-            </form>
-          </div>
+        {/* Page heading — sits directly on the black body */}
+        <div className="text-center mb-8 sm:mb-10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-volt font-bold">
+            VES Campus Clash
+          </span>
+          <h1 className="font-display text-3xl sm:text-4xl uppercase tracking-tight text-white mt-2">
+            Claim Your Ticket
+          </h1>
+          <p className="text-white/50 text-small mt-2">
+            Register below to unlock the Memory Match Challenge.
+          </p>
         </div>
 
-        {/* Game Highlights Sidebar */}
-        <div className="lg:col-span-5 order-2 lg:order-1 w-full lg:sticky lg:top-6">
-          <div className="bg-ink-soft border border-ink-line rounded-card p-4 sm:p-6 flex flex-col justify-between w-full">
+        {/* The Ticket — info stub (left) joined to the registration coupon (right) */}
+        <div className="relative flex flex-col lg:flex-row gap-4 lg:gap-0">
+
+          {/* Perforation notches, desktop only, sit exactly on the seam */}
+          <div className="hidden lg:block absolute -top-3 left-[380px] -translate-x-1/2 h-6 w-6 rounded-full bg-black z-10" />
+          <div className="hidden lg:block absolute -bottom-3 left-[380px] -translate-x-1/2 h-6 w-6 rounded-full bg-black z-10" />
+
+          {/* Stub — event info, order 2 on mobile so the form leads */}
+          <div className="order-2 lg:order-1 lg:w-[380px] lg:shrink-0 bg-ink-soft border border-ink-line rounded-ticket lg:rounded-r-none lg:rounded-l-ticket p-5 sm:p-6 space-y-4">
+
             <div>
-              <span className="font-mono text-[11px] sm:text-small text-volt uppercase tracking-widest font-bold block mb-1">
-                // GAME OVERVIEW
-              </span>
-              <h2 className="font-display text-xl sm:text-h3 uppercase text-text-hi leading-tight">
-                Match, Score & Clash
+              <h2 className="font-display text-lg uppercase text-text-hi leading-tight">
+                One Student. One Shot. One Score.
               </h2>
               <p className="text-text-lo text-small mt-1.5">
-                2-level memory challenge designed to test your speed & precision.
+                Play one official Memory Match Challenge and earn your personalised
+                Instagram Story Card.
               </p>
+            </div>
 
-              <div className="grid grid-cols-3 gap-1 border-y border-ink-line py-3 my-4">
-                <div className="text-center">
-                  <span className="block font-display text-lg sm:text-body font-bold text-volt">2</span>
-                  <span className="font-mono text-[10px] sm:text-[11px] text-text-lo uppercase tracking-wide">Levels</span>
-                </div>
-                <div className="text-center border-x border-ink-line">
-                  <span className="block font-display text-lg sm:text-body font-bold text-punch">2-4</span>
-                  <span className="font-mono text-[10px] sm:text-[11px] text-text-lo uppercase tracking-wide">Mins</span>
-                </div>
-                <div className="text-center">
-                  <span className="block font-display text-lg sm:text-body font-bold text-signal">1</span>
-                  <span className="font-mono text-[10px] sm:text-[11px] text-text-lo uppercase tracking-wide">Card</span>
-                </div>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 divide-x divide-ink-line border-y border-ink-line py-2.5">
+              <div className="text-center">
+                <span className="block font-display text-lg font-bold text-volt">2</span>
+                <span className="font-mono text-[10px] uppercase text-text-lo tracking-wide">Levels</span>
               </div>
-
-              <ul className="space-y-2 text-small text-text-hi font-body">
-                <li className="flex items-start gap-2.5">
-                  <span className="font-mono text-volt font-bold shrink-0">01.</span>
-                  <span>Flip & match pairs before the timer ends.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="font-mono text-volt font-bold shrink-0">02.</span>
-                  <span>Maintain streaks for <strong>Combo Bonus</strong>.</span>
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <span className="font-mono text-volt font-bold shrink-0">03.</span>
-                  <span>Get extra time with <strong>Power-Up pairs</strong>.</span>
-                </li>
-              </ul>
-
-              <div className="mt-4 pt-3 border-t border-ink-line/50">
-                <button
-                  type="button"
-                  onClick={() => setIsRulesOpen(true)}
-                  className="text-volt hover:text-white font-mono text-[11px] sm:text-[12px] uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition"
-                >
-                  <span>View Full Rulebook & Scoring</span>
-                  <span>→</span>
-                </button>
+              <div className="text-center">
+                <span className="block font-display text-lg font-bold text-punch">80s</span>
+                <span className="font-mono text-[10px] uppercase text-text-lo tracking-wide">Base Time</span>
+              </div>
+              <div className="text-center">
+                <span className="block font-display text-lg font-bold text-signal">1</span>
+                <span className="font-mono text-[10px] uppercase text-text-lo tracking-wide">Attempt</span>
               </div>
             </div>
 
-            <div className="bg-paper/10 border border-paper-line/20 rounded-card p-3 mt-4 flex items-center gap-2.5">
-              <span className="text-punch text-body font-display shrink-0">★</span>
-              <p className="text-[12px] text-text-hi leading-tight">
-                Clear Level 2 to unlock your shareable <strong>Instagram Story Card</strong>!
-              </p>
+            {/* Journey */}
+            <ol className="space-y-2 text-small text-text-hi">
+              <li className="flex gap-3">
+                <span className="font-mono text-volt font-bold shrink-0">01</span>
+                <span>Register using your student details.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-mono text-volt font-bold shrink-0">02</span>
+                <span>Play one continuous 2-level Memory Match Challenge.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-mono text-volt font-bold shrink-0">03</span>
+                <span>Match every pair before the timer reaches zero.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-mono text-volt font-bold shrink-0">04</span>
+                <span>Earn Combo Bonuses, Time Bonuses and Power-Up rewards.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-mono text-volt font-bold shrink-0">05</span>
+                <span>Generate your Story Card and challenge your friends.</span>
+              </li>
+            </ol>
+
+            {/* Fair Play */}
+            <div className="border-t border-ink-line pt-3">
+              <h3 className="font-display uppercase text-small text-volt mb-1.5">Fair Play</h3>
+              <ul className="grid grid-cols-2 gap-y-1 gap-x-2 text-[13px] text-text-hi">
+                <li>✓ One Registration</li>
+                <li>✓ One Gameplay</li>
+                <li>✓ One Final Score</li>
+                <li>✓ Server Verified</li>
+              </ul>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsRulesOpen(true)}
+              className="w-full text-left text-volt hover:text-white font-mono text-[12px] uppercase tracking-wider cursor-pointer flex items-center justify-between gap-2 transition border-t border-ink-line pt-3"
+            >
+              <span>View Complete Rulebook</span>
+              <span>→</span>
+            </button>
+
+            {/* Reward */}
+            <div className="bg-paper/10 border border-paper-line/20 rounded-card p-3 flex items-start gap-3">
+              <span className="text-punch text-xl shrink-0">🏆</span>
+              <div>
+                <p className="text-text-hi text-small font-semibold">Complete the Challenge</p>
+                <p className="text-[12px] text-text-lo mt-1">
+                  Unlock your personalised Instagram Story Card and show everyone your final score.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
+          {/* Coupon — the registration form, order 1 on mobile, right side on desktop */}
+          <div className="order-1 lg:order-2 flex-1 min-w-0">
+            <div className="bg-paper text-paper-hi rounded-ticket lg:rounded-l-none lg:rounded-r-ticket shadow-ticket border border-paper-line lg:border-l-0 overflow-hidden h-full">
+
+              <header className="px-5 py-4 border-b border-dashed border-paper-line">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-mono text-[10px] uppercase text-punch font-bold tracking-widest">
+                    Admit One
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-paper-lo shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-punch animate-pulse" />
+                    Entry Form
+                  </span>
+                </div>
+                <h2 className="font-display text-xl sm:text-h2 uppercase tracking-tight leading-tight">
+                  Student Registration
+                </h2>
+                <p className="text-paper-lo text-small mt-1">
+                  Takes under a minute · <span className="text-punch">*</span> required
+                </p>
+              </header>
+
+              {apiError && (
+                <div
+                  role="alert"
+                  className="mx-5 mt-4 flex items-start gap-2.5 p-3 bg-punch/10 border border-punch/40 rounded-card text-punch text-small font-mono"
+                >
+                  <span className="shrink-0 mt-0.5">⚠</span>
+                  <span className="leading-snug">{apiError}</span>
+                </div>
+              )}
+
+              <form
+                id="registration-form"
+                onSubmit={handleSubmit(onSubmit)}
+                className="px-5 py-5 space-y-5"
+                noValidate
+              >
+                {/* Section 1 — who you are */}
+                <fieldset className="space-y-3">
+                  <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
+                    Your details
+                  </legend>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-8">
+                      <label htmlFor="full_name" className={labelClass}>
+                        Full Name <span className="text-punch">*</span>
+                      </label>
+                      <input
+                        id="full_name"
+                        type="text"
+                        placeholder="e.g. Rahul Sharma"
+                        aria-invalid={errors.full_name ? "true" : "false"}
+                        {...register("full_name", { required: "Full name is required." })}
+                        className={fieldClass(errors.full_name)}
+                      />
+                      <FieldError message={errors.full_name?.message} />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className={labelClass}>
+                        Photo <span className="text-paper-lo font-normal normal-case">(optional)</span>
+                      </label>
+                      <div className="flex items-center gap-2.5 bg-white border border-paper-line rounded-card px-2.5 py-2 h-[46px]">
+                        {photoPreview ? (
+                          <img
+                            src={photoPreview}
+                            alt="Preview"
+                            className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-paper-line"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-paper-line/30 flex items-center justify-center text-small shrink-0">
+                            📷
+                          </div>
+                        )}
+                        <label className="text-[12px] font-display uppercase tracking-wider text-punch cursor-pointer truncate font-bold flex-1">
+                          {photoPreview ? "Change" : "Upload"}
+                          <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+                        </label>
+                        {photoPreview && (
+                          <button
+                            type="button"
+                            onClick={removePhoto}
+                            aria-label="Remove photo"
+                            className="text-paper-lo hover:text-punch shrink-0 text-small leading-none"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+
+                {/* Section 2 — academic info */}
+                <fieldset className="space-y-3">
+                  <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
+                    Academic details
+                  </legend>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="institute" className={labelClass}>
+                        Institute <span className="text-punch">*</span>
+                      </label>
+                      <input
+                        id="institute"
+                        type="text"
+                        placeholder="e.g. VESIT"
+                        aria-invalid={errors.institute ? "true" : "false"}
+                        {...register("institute", { required: "Institute is required." })}
+                        className={fieldClass(errors.institute)}
+                      />
+                      <FieldError message={errors.institute?.message} />
+                    </div>
+
+                    <div>
+                      <label htmlFor="course" className={labelClass}>
+                        Course <span className="text-punch">*</span>
+                      </label>
+                      <input
+                        id="course"
+                        type="text"
+                        placeholder="e.g. B.E. CS / B.Sc IT"
+                        aria-invalid={errors.course ? "true" : "false"}
+                        {...register("course", { required: "Course is required." })}
+                        className={fieldClass(errors.course)}
+                      />
+                      <FieldError message={errors.course?.message} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="academic_year" className={labelClass}>
+                      Academic Year <span className="text-punch">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="academic_year"
+                        aria-invalid={errors.academic_year ? "true" : "false"}
+                        {...register("academic_year", { required: "Academic year is required." })}
+                        className={`${fieldClass(errors.academic_year)} pr-9 appearance-none cursor-pointer`}
+                      >
+                        <option value="">Select year</option>
+                        <option value="FY">First Year (FY)</option>
+                        <option value="SY">Second Year (SY)</option>
+                        <option value="TY">Third Year (TY)</option>
+                        <option value="Final">Final Year</option>
+                      </select>
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-paper-lo text-small">
+                        ▼
+                      </span>
+                    </div>
+                    <FieldError message={errors.academic_year?.message} />
+                  </div>
+                </fieldset>
+
+                {/* Section 3 — social + confirmation */}
+                <fieldset className="space-y-3">
+                  <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
+                    Instagram
+                  </legend>
+
+                  <div>
+                    <label htmlFor="instagram_handle" className={labelClass}>
+                      Instagram Handle <span className="text-punch">*</span>
+                    </label>
+                    <input
+                      id="instagram_handle"
+                      type="text"
+                      placeholder="@username"
+                      aria-invalid={errors.instagram_handle ? "true" : "false"}
+                      {...register("instagram_handle", { required: "Instagram username is required." })}
+                      className={fieldClass(errors.instagram_handle)}
+                    />
+                    <FieldError message={errors.instagram_handle?.message} />
+                  </div>
+
+                  <div className="bg-white border border-paper-line rounded-card p-3">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        aria-invalid={errors.follow_confirmed ? "true" : "false"}
+                        {...register("follow_confirmed", {
+                          required: "Please confirm that you followed the Instagram page.",
+                        })}
+                        className="mt-0.5 h-4 w-4 rounded border-paper-line text-punch focus:ring-punch cursor-pointer shrink-0"
+                      />
+                      <span className="text-small text-paper-hi leading-tight">
+                        I confirm that I follow the official <strong>@ves_campus_clash</strong> Instagram page.{" "}
+                        <span className="text-punch">*</span>
+                      </span>
+                    </label>
+                    <FieldError message={errors.follow_confirmed?.message} />
+                  </div>
+                </fieldset>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-punch hover:bg-punch-dim disabled:opacity-50 disabled:cursor-not-allowed text-text-hi rounded-pill py-3 font-display text-base sm:text-h3 tracking-wide uppercase transition-all transform active:scale-[0.98] shadow-soft cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span>Processing…</span>
+                    </>
+                  ) : (
+                    "Continue to Game →"
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
       </div>
 
       <GameRulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
