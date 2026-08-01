@@ -1,14 +1,6 @@
 import { Link } from "react-router-dom";
 import { STATUS } from "../ProtectedRoute";
-
-function getParticipantStatus() {
-  try {
-    const stored = JSON.parse(localStorage.getItem("participant") || "null");
-    return stored?.game_session?.status || null;
-  } catch {
-    return null;
-  }
-}
+import { useGameSession } from "../../context/GameSessionContext";
 
 function getNavTab(status) {
   switch (status) {
@@ -18,13 +10,12 @@ function getNavTab(status) {
     case STATUS.COMPLETED:
       return { label: "Result", to: "/result" };
     default:
-      // EXPIRED / ABANDONED / no status at all
       return { label: "Register", to: "/register" };
   }
 }
 
 export default function Navbar() {
-  const status = getParticipantStatus();
+  const { status } = useGameSession();
   const tab = getNavTab(status);
 
   return (
