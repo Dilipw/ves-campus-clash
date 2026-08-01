@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Log;
 use App\Exceptions\BusinessException;
 use App\Services\Game\Support\ResolvesGameSession;
 use App\Services\Game\Support\ValidatesGamePairs;
+use App\Services\Game\Support\CalculatesGameTiming;
 
 class GameProgressService
 {
-    use ResolvesGameSession, ValidatesGamePairs;
+    use ResolvesGameSession, ValidatesGamePairs, CalculatesGameTiming;
 
     /**
      * Save game progress.
@@ -44,9 +45,9 @@ class GameProgressService
 
             /*
             |--------------------------------------------------------------------------
-            | Same server-authoritative timing as completion, so the progress
-            | endpoint never shows a timer value that disagrees with what
-            | complete() will ultimately persist.
+            | Same server-authoritative timing as GameCompletionService, via the
+            | shared CalculatesGameTiming trait, so a progress snapshot mid-game
+            | and the eventual completion record can never disagree.
             |--------------------------------------------------------------------------
             */
             [$timeTaken, $remainingTime] = $this->calculateServerTiming(
@@ -61,6 +62,14 @@ class GameProgressService
                 $timeTaken,
                 $remainingTime
             );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Only write a GameLog row for a significant event (level completed).
+            | Plain progress ticks (a move, a tick of the clock) still persist to
+            | the game_sessions row above, but no longer spam the game_logs table.
+            |--------------------------------------------------------------------------
+            */
 
             if ($levelledUp) {
                 $this->createLevelCompletedLog($session);
@@ -92,11 +101,14 @@ class GameProgressService
     }
 
     /**
-     * Validate client-submitted gameplay data. Timing fields are no
-     * longer accepted or validated here — see calculateServerTiming().
+     * Validate and clamp client-submitted gameplay data against the
+     * session's current server-side state. time_taken / remaining_time
+     * are not accepted from the client — see calculateServerTiming().
      *
      * matched_pairs is treated as a CUMULATIVE counter across the whole
-     * session, same as before.
+     * session (it never resets between levels — a player on level 2
+     * who has matched 3 pairs so far this level should be reporting
+     * 8 + 3 = 11, not 3).
      *
      * @param GameSession $session
      * @param array $data
@@ -143,30 +155,6 @@ class GameProgressService
     }
 
     /**
-     * Derive authoritative time_taken / remaining_time from started_at
-     * vs. the current server clock. Duplicated intentionally from
-     * GameCompletionService — if you'd rather share it, pull both into
-     * a small trait (e.g. CalculatesGameTiming) used by both services.
-     *
-     * @param GameSession $session
-     * @return array{0: int, 1: int} [$timeTaken, $remainingTime]
-     */
-    private function calculateServerTiming(GameSession $session): array
-    {
-        $totalBudget = (int) collect(config('game.levels'))->sum('duration');
-
-        $elapsedSeconds = $session->started_at
-            ? $session->started_at->diffInSeconds(now())
-            : $totalBudget;
-
-        $timeTaken = max(0, min($elapsedSeconds, $totalBudget));
-
-        $remainingTime = max(0, $totalBudget - $timeTaken);
-
-        return [$timeTaken, $remainingTime];
-    }
-
-    /**
      * Update game session progress with server-calculated timing.
      *
      * @param GameSession $session
@@ -201,6 +189,7 @@ class GameProgressService
 
     /**
      * Create a game log entry for a completed level.
+     * This is one of the whitelisted "significant" events.
      *
      * @param GameSession $session
      * @return void

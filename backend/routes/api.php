@@ -4,9 +4,12 @@ use App\Http\Controllers\Api\V1\GameController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\V1\ParticipantController;
+use App\Http\Controllers\Api\GameConfigController;
+
+
 
 Route::prefix('v1')->group(function () {
-
+    Route::get('/game/config', [GameConfigController::class, 'show']);
     Route::prefix('participants')->group(function () {
 
         Route::post('/register', [ParticipantController::class, 'register'])

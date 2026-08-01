@@ -6,11 +6,6 @@ import { useGameSession } from "../context/GameSessionContext";
 import { sfx, startAmbient, stopAmbient, primeAudio } from "../services/soundEngine";
 import "./game.css";
 
-const LEVELS = [
-    { level: 1, pairs: 8, cols: 4, duration: 45 },
-    { level: 2, pairs: 10, cols: 5, duration: 35 },
-];
-const TOTAL_BUDGET = LEVELS.reduce((sum, l) => sum + l.duration, 0);
 const ICONS = ["⚡", "🔥", "⭐", "🎯", "💎", "🚀", "❤️", "🌟", "🎓", "🏆"];
 
 // Restored to a short interval on purpose: this is the server's main
@@ -63,19 +58,78 @@ function makeConfetti(count = 26) {
     }));
 }
 
+/*
+|--------------------------------------------------------------------------
+| Level structure (pairs / duration / cols per level) is no longer
+| hardcoded here. It's fetched once from GET /game/config, which reads
+| config('game.levels') on the backend — the same source the server
+| uses for scoring/timing validation. This is what closes the drift
+| risk that previously let the frontend's TOTAL_BUDGET (80s) and the
+| backend's timer budget disagree.
+|--------------------------------------------------------------------------
+*/
 export default function GamePage() {
+    const [gameConfig, setGameConfig] = useState(null);
+    const [configError, setConfigError] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        gameApi.getConfig()
+            .then((res) => {
+                if (cancelled) return;
+                const data = res.data?.data || res.data;
+                if (!data?.levels?.length) {
+                    setConfigError("Game configuration is empty. Please try again later.");
+                    return;
+                }
+                setGameConfig(data);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setConfigError(err.response?.data?.message || "Could not load game configuration.");
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    if (configError) {
+        return (
+            <div className="max-w-md mx-auto mt-10 p-4 bg-punch/10 border border-punch rounded-card text-punch text-small font-mono">
+                {configError}
+            </div>
+        );
+    }
+
+    if (!gameConfig) {
+        return (
+            <div className="w-full h-[60vh] flex items-center justify-center">
+                <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <ProtectedRoute allow={[STATUS.REGISTERED, STATUS.PLAYING]}>
-            {(sessionData) => <GameBoard sessionData={sessionData} />}
+            {(sessionData) => <GameBoard sessionData={sessionData} gameConfig={gameConfig} />}
         </ProtectedRoute>
     );
 }
 
-function GameBoard({ sessionData }) {
+function GameBoard({ sessionData, gameConfig }) {
     const navigate = useNavigate();
     const { refetch } = useGameSession();
     const participant = JSON.parse(localStorage.getItem("participant") || "{}");
     const sessionUuid = participant?.game_session?.uuid;
+
+    // Sourced from GET /game/config — shape: [{ level, pairs, cols, duration }],
+    // same shape the old hardcoded LEVELS array used, so nothing below this
+    // needs to change beyond where these two come from.
+    const LEVELS = gameConfig.levels;
+    const TOTAL_BUDGET = gameConfig.total_budget_seconds ??
+        LEVELS.reduce((sum, l) => sum + l.duration, 0);
 
     const startingLevel = sessionData?.status === STATUS.PLAYING
         ? Math.max(1, sessionData.current_level)
@@ -145,7 +199,7 @@ function GameBoard({ sessionData }) {
         const raw = TOTAL_BUDGET - elapsedRef.current;
         const clamped = Math.min(raw, lastConfirmedRemainingRef.current);
         return Math.max(0, Math.round(clamped));
-    }, []);
+    }, [TOTAL_BUDGET]);
 
     const syncProgress = useCallback(async (overrides = {}) => {
         if (!sessionUuid) return;
@@ -401,7 +455,7 @@ function GameBoard({ sessionData }) {
                 <div className="start-glow mx-auto mb-5" aria-hidden="true">🎴</div>
                 <h2 className="font-display text-h2 uppercase mb-2">Ready?</h2>
                 <p className="text-paper-lo text-small mb-6">
-                    2 levels. Match pairs before the timer runs out. Tap Start when you're ready — the clock begins immediately.
+                    {LEVELS.length} levels. Match pairs before the timer runs out. Tap Start when you're ready — the clock begins immediately.
                 </p>
                 <button
                     onClick={handleStartGame}

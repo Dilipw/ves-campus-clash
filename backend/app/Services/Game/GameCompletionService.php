@@ -191,7 +191,9 @@ class GameCompletionService
      */
     private function totalGameDurationSeconds(): int
     {
-        return (int) collect(config('game.levels'))->sum('duration');
+        return array_sum(
+            config('game.levels.duration_by_level', [])
+        );
     }
 
     /**
