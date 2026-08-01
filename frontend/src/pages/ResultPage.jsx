@@ -1,5 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import html2canvas from "html2canvas";
+import {
+  Download,
+  Share2,
+  Copy,
+  Check,
+  RefreshCw,
+  AlertCircle,
+  Grid2x2,
+  Timer,
+  MousePointerClick,
+} from "lucide-react";
 import { gameApi } from "../services/api";
 import ProtectedRoute, { STATUS } from "../components/ProtectedRoute";
 import StoryCard, { STORY_WIDTH, STORY_HEIGHT } from "../components/StoryCard";
@@ -9,41 +20,73 @@ import StoryCard, { STORY_WIDTH, STORY_HEIGHT } from "../components/StoryCard";
 const SHARE_CAPTION =
   "@ves.ac.in Campus Clash \u2014 I just cleared the board! Scan the campus QR and beat my score. #CampusClash #VESIT";
 
+// ---------------------------------------------------------------------
+// Entry point — gated behind a completed session. No "Play Again" here
+// by design (per brief: "one shot, one score — no replay from result").
+// ---------------------------------------------------------------------
 export default function ResultPage() {
   return (
     <ProtectedRoute allow={[STATUS.COMPLETED]}>
-      {(sessionData) => <ResultView sessionUuid={sessionData ? getSessionUuid() : null} />}
+      {(sessionData) => (
+        <ResultView sessionUuid={sessionData?.game_session?.uuid ?? getStoredSessionUuid()} />
+      )}
     </ProtectedRoute>
   );
 }
 
-function getSessionUuid() {
-  const stored = JSON.parse(localStorage.getItem("participant") || "null");
-  return stored?.game_session?.uuid;
+function getStoredSessionUuid() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("participant") || "null");
+    return stored?.game_session?.uuid ?? null;
+  } catch {
+    return null;
+  }
 }
 
-function ResultView() {
+function ResultView({ sessionUuid }) {
+  const [status, setStatus] = useState("loading"); // loading | error | ready
+  const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+
   const [imageUrl, setImageUrl] = useState(null); // preview + download source
   const [imageBlob, setImageBlob] = useState(null); // for native share
-  const [rendering, setRendering] = useState(false);
+  const [cardStatus, setCardStatus] = useState("idle"); // idle | rendering | ready | failed
+
   const [shareState, setShareState] = useState("idle"); // idle | sharing | done | unsupported
+  const [downloaded, setDownloaded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [announcement, setAnnouncement] = useState(""); // screen-reader status
 
   const cardRef = useRef(null); // full-size, off-screen node used for capture
+  const imageUrlRef = useRef(null);
+
+  const fetchResult = useCallback(() => {
+    if (!sessionUuid) {
+      setStatus("error");
+      setErrorMessage("We couldn't find your session. Please play the game first.");
+      return;
+    }
+    setStatus("loading");
+    gameApi
+      .result(sessionUuid)
+      .then((res) => {
+        setResult(res.data?.data || res.data);
+        setStatus("ready");
+      })
+      .catch((err) => {
+        setStatus("error");
+        setErrorMessage(err.response?.data?.message || "Couldn't load your result. Check your connection and try again.");
+      });
+  }, [sessionUuid]);
 
   useEffect(() => {
-    const uuid = getSessionUuid();
-    gameApi
-      .result(uuid)
-      .then((res) => setResult(res.data?.data || res.data))
-      .catch((err) => setError(err.response?.data?.message || "Could not load your result."));
-  }, []);
+    fetchResult();
+  }, [fetchResult]);
 
   // Once we have result data, render the off-screen card and snapshot it once.
   const renderCard = useCallback(async () => {
     if (!cardRef.current) return;
-    setRendering(true);
+    setCardStatus("rendering");
     try {
       const canvas = await html2canvas(cardRef.current, {
         width: STORY_WIDTH,
@@ -56,51 +99,62 @@ function ResultView() {
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1));
       if (!blob) throw new Error("Canvas produced no image data");
 
+      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      imageUrlRef.current = url;
+
       setImageBlob(blob);
-      setImageUrl(URL.createObjectURL(blob));
+      setImageUrl(url);
+      setCardStatus("ready");
     } catch (err) {
       console.error("Story card render failed:", err);
-      setError("Couldn't generate your story card. Try again.");
-    } finally {
-      setRendering(false);
+      setCardStatus("failed");
     }
   }, []);
 
   useEffect(() => {
-    if (result) renderCard();
-    // Revoke the object URL on unmount / re-render to avoid leaking memory.
+    if (status === "ready") renderCard();
+  }, [status, renderCard]);
+
+  // Revoke the object URL on unmount only — not on every render.
+  useEffect(() => {
     return () => {
-      if (imageUrl) URL.revokeObjectURL(imageUrl);
+      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  }, []);
+
+  const canShareFiles = useMemo(() => {
+    if (typeof navigator === "undefined" || !navigator.canShare) return false;
+    try {
+      return navigator.canShare({ files: [new File([], "x.png", { type: "image/png" })] });
+    } catch {
+      return false;
+    }
+  }, []);
 
   const handleDownload = () => {
     if (!imageUrl) return;
+    const handle = result?.participant?.instagram_handle || "player";
     const a = document.createElement("a");
     a.href = imageUrl;
-    a.download = `campus-clash-${result?.result?.score ?? "score"}.png`;
+    a.download = `campus-clash-${handle}-${result?.result?.score ?? "score"}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
+    setDownloaded(true);
+    setAnnouncement("Story card downloaded.");
   };
 
   const handleShare = async () => {
     if (!imageBlob) return;
-
     const file = new File([imageBlob], "campus-clash-story.png", { type: "image/png" });
 
-    // Web Share API Level 2 (navigator.canShare with files) is what surfaces
-    // Instagram (Story/Feed/DM) in the native share sheet on Android/iOS.
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (canShareFiles) {
       setShareState("sharing");
       try {
-        await navigator.share({
-          files: [file],
-          title: "Campus Clash",
-          text: SHARE_CAPTION,
-        });
+        await navigator.share({ files: [file], title: "Campus Clash", text: SHARE_CAPTION });
         setShareState("done");
+        setAnnouncement("Shared successfully.");
       } catch (err) {
         // AbortError just means the user closed the sheet — not a real error.
         if (err.name !== "AbortError") console.error("Share failed:", err);
@@ -109,44 +163,129 @@ function ResultView() {
       return;
     }
 
-    // Desktop / unsupported browsers: fall back to download + copy caption,
-    // since there's no share sheet to hand the file to.
-    setShareState("unsupported");
+    // No share sheet available on this browser — download is still the
+    // guaranteed path, so lean on that instead of pretending to share.
     handleDownload();
+    setShareState("unsupported");
+  };
+
+  const handleCopyCaption = async () => {
     try {
       await navigator.clipboard.writeText(SHARE_CAPTION);
+      setCopied(true);
+      setAnnouncement("Caption copied to clipboard.");
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* clipboard access denied — non-fatal, caption is shown below anyway */
+      /* clipboard access denied — non-fatal, caption text is visible either way */
     }
   };
 
-  if (error) {
-    return <div className="max-w-md mx-auto mt-10 text-punch font-mono text-small">{error}</div>;
-  }
-
-  if (!result) {
+  // ------------------------------------------------------------------
+  // Loading state
+  // ------------------------------------------------------------------
+  if (status === "loading") {
     return (
-      <div className="w-full h-[60vh] flex items-center justify-center">
-        <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
+      <div
+        className="min-h-[70vh] px-4"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}
+      >
+        <span
+          className="h-8 w-8 rounded-full border-2 border-punch border-t-transparent animate-spin"
+          role="status"
+          aria-label="Loading your result"
+        />
+        <p className="font-mono" style={{ fontSize: 13, color: "#B8ACA4", margin: 0 }}>
+          Tallying your score…
+        </p>
       </div>
     );
   }
 
-  const canShareFiles =
-    typeof navigator !== "undefined" &&
-    navigator.canShare &&
-    navigator.canShare({ files: [new File([], "x.png", { type: "image/png" })] });
+  // ------------------------------------------------------------------
+  // Error state
+  // ------------------------------------------------------------------
+  if (status === "error") {
+    return (
+      <div
+        className="px-6 text-center min-h-[70vh]"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}
+      >
+        <AlertCircle color="#FF5A1F" size={36} />
+        <p className="font-display" style={{ margin: 0, fontSize: 22, color: "#F5EDE6", fontWeight: 700 }}>
+          Something went wrong
+        </p>
+        <p style={{ maxWidth: 280, margin: 0, fontSize: 14, color: "#B8ACA4" }}>{errorMessage}</p>
+        <button
+          onClick={fetchResult}
+          className="font-display uppercase text-small retry-btn"
+          style={{
+            marginTop: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            borderRadius: 999,
+            border: "1px solid #C9932E",
+            padding: "10px 24px",
+            color: "#C9932E",
+            background: "transparent",
+            cursor: "pointer",
+          }}
+        >
+          <RefreshCw size={16} />
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Ready state
+  // ------------------------------------------------------------------
+  const { score, matched_pairs, moves, time_taken } = result.result;
+  const minutes = Math.floor((time_taken ?? 0) / 60);
+  const seconds = String((time_taken ?? 0) % 60).padStart(2, "0");
 
   return (
     <div className="max-w-md mx-auto px-4 py-10 text-center">
-      <span className="font-mono text-small uppercase text-punch font-bold">Final Score</span>
-      <h1 className="font-display text-h1 my-2">{result.result.score}</h1>
-      <p className="text-small text-paper-lo mb-6">
-        {result.result.matched_pairs} pairs matched in {result.result.moves} moves.
+      {/* Screen-reader-only live region for async action feedback */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
       </p>
 
-      {/* Live preview of the story card. Sized by aspect-ratio + max-width
-          so it scales cleanly on any screen instead of a fixed px scale. */}
+      {/* Score */}
+      <div className="animate-[fadeSlideUp_0.5s_ease-out]">
+        <span
+          className="font-mono uppercase"
+          style={{ fontSize: 13, letterSpacing: 2, color: "#FF5A1F", fontWeight: 700 }}
+        >
+          Final Score
+        </span>
+        <h1
+          className="font-display"
+          style={{ fontSize: 64, lineHeight: 1, margin: "8px 0", color: "#F5EDE6", fontWeight: 800 }}
+        >
+          {score}
+        </h1>
+      </div>
+
+      {/* Quick stats — scannable at a glance, no ambiguity about totals.
+          Gap is set inline (not via Tailwind's gap-2) so spacing renders
+          correctly even if the Tailwind build isn't picking up this file. */}
+      <div
+        style={{
+          marginBottom: 24,
+          display: "flex",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
+        <StatChip icon={<Grid2x2 size={14} />} label={`${matched_pairs} pairs`} />
+        <StatChip icon={<MousePointerClick size={14} />} label={`${moves} moves`} />
+        <StatChip icon={<Timer size={14} />} label={`${minutes}:${seconds}`} />
+      </div>
+
+      {/* Story card preview */}
       <div className="mb-6 flex justify-center">
         <div
           style={{
@@ -158,71 +297,207 @@ function ResultView() {
             border: "3px solid #F4A79F",
             boxShadow: "0 12px 32px rgba(43,36,32,0.18)",
             background: "#FBF6EC",
+            position: "relative",
           }}
         >
-          {imageUrl ? (
+          {cardStatus === "ready" && imageUrl && (
             <img
               src={imageUrl}
-              alt="Your Campus Clash story card"
+              alt={`Your Campus Clash story card — score ${score}`}
               style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }}
+              className="animate-[fadeIn_0.4s_ease-out]"
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
+          )}
+
+          {cardStatus === "rendering" && <CardSkeleton />}
+
+          {cardStatus === "failed" && (
+            <div
+              className="w-full h-full px-6 text-center"
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}
+            >
+              <AlertCircle color="#FF5A1F" size={28} />
+              <p style={{ margin: 0, fontSize: 14, color: "#7A6A64" }}>
+                Couldn't generate your story card.
+              </p>
+              <button
+                onClick={renderCard}
+                className="text-small font-display uppercase retry-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: "#C9932E",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 2,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <RefreshCw size={14} />
+                Retry
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
+      {/* Primary actions */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <button
-          className="w-full bg-punch text-white rounded-pill py-3 font-display uppercase disabled:opacity-50"
-          onClick={handleShare}
-          disabled={!imageBlob || rendering || shareState === "sharing"}
+          className="font-display uppercase"
+          onClick={handleDownload}
+          disabled={cardStatus !== "ready"}
+          style={{
+            width: "100%",
+            background: "#FF5A1F",
+            color: "#FFFFFF",
+            borderRadius: 999,
+            border: "none",
+            padding: "12px 0",
+            cursor: cardStatus !== "ready" ? "not-allowed" : "pointer",
+            opacity: cardStatus !== "ready" ? 0.5 : 1,
+            transition: "opacity 0.15s ease",
+          }}
         >
-          {shareState === "sharing"
-            ? "Opening share sheet..."
-            : canShareFiles
-            ? "Share to Instagram"
-            : "Share"}
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            {downloaded ? <Check size={18} /> : <Download size={18} />}
+            {downloaded ? "Downloaded" : "Download Story Card"}
+          </span>
         </button>
 
-        <button
-          className="w-full border border-gold text-gold rounded-pill py-3 font-display uppercase disabled:opacity-50"
-          onClick={handleDownload}
-          disabled={!imageUrl || rendering}
-        >
-          Download Story Card
-        </button>
+        {canShareFiles && (
+          <button
+            className="font-display uppercase"
+            onClick={handleShare}
+            disabled={cardStatus !== "ready" || shareState === "sharing"}
+            style={{
+              width: "100%",
+              background: "transparent",
+              color: "#C9932E",
+              border: "1px solid #C9932E",
+              borderRadius: 999,
+              padding: "12px 0",
+              cursor: cardStatus !== "ready" || shareState === "sharing" ? "not-allowed" : "pointer",
+              opacity: cardStatus !== "ready" || shareState === "sharing" ? 0.5 : 1,
+              transition: "opacity 0.15s ease",
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Share2 size={18} />
+              {shareState === "sharing" ? "Opening share sheet…" : "Share"}
+            </span>
+          </button>
+        )}
       </div>
 
-      {shareState === "unsupported" && (
-        <p className="text-[12px] text-paper-lo mt-4">
-          Your browser can't open the Instagram share sheet directly, so we downloaded the image
-          and copied the caption for you. Open Instagram, add a new Story, and paste the caption:
-          <br />
-          <strong>{SHARE_CAPTION}</strong>
+      {/* Caption — always available, not just as an unsupported-browser fallback */}
+      <div
+        className="text-left"
+        style={{
+          marginTop: 20,
+          borderRadius: 16,
+          border: "1px solid rgba(201, 147, 46, 0.35)",
+          background: "rgba(201, 147, 46, 0.08)",
+          padding: "12px 16px",
+        }}
+      >
+        <p
+          className="font-mono uppercase"
+          style={{ fontSize: 11, letterSpacing: 1, color: "#B8ACA4", marginBottom: 6 }}
+        >
+          Caption for your Story
         </p>
-      )}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <p style={{ flex: 1, margin: 0, fontSize: 14, color: "#F5EDE6" }}>{SHARE_CAPTION}</p>
+          <button
+            onClick={handleCopyCaption}
+            aria-label="Copy caption"
+            className="copy-caption-btn"
+            style={{
+              flexShrink: 0,
+              borderRadius: "50%",
+              padding: 6,
+              color: "#C9932E",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+            }}
+          >
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+          </button>
+        </div>
+      </div>
 
-      <p className="text-[12px] text-paper-lo mt-4">
-        Post it to your Instagram Story and tag <strong>@ves.ac.in</strong> to be featured.
+      <p style={{ fontSize: 12, color: "#B8ACA4", marginTop: 16 }}>
+        Post it to your Instagram Story and tag <strong style={{ color: "#F5EDE6" }}>@ves.ac.in</strong> to be featured.
       </p>
 
       {/* Off-screen full-resolution render target for html2canvas.
           Kept in the DOM (not display:none) since html2canvas needs
           real layout to capture; pushed off-screen instead. */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: "-99999px",
-          pointerEvents: "none",
-        }}
-        aria-hidden="true"
-      >
+      <div style={{ position: "fixed", top: 0, left: "-99999px", pointerEvents: "none" }} aria-hidden="true">
         <StoryCard ref={cardRef} participant={result.participant} result={result.result} />
       </div>
+
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes shimmer {
+          from { background-position: -200% 0; }
+          to { background-position: 200% 0; }
+        }
+        .retry-btn:hover {
+          background: #C9932E !important;
+          color: #FFFFFF !important;
+        }
+        .copy-caption-btn:hover {
+          background: rgba(201, 147, 46, 0.1);
+        }
+      `}</style>
     </div>
+  );
+}
+
+function StatChip({ icon, label }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        borderRadius: 999,
+        background: "rgba(201, 147, 46, 0.15)",
+        color: "#F5EDE6",
+        padding: "6px 12px",
+        fontSize: 13,
+        fontWeight: 500,
+      }}
+    >
+      <span style={{ color: "#C9932E", display: "flex" }}>{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function CardSkeleton() {
+  return (
+    <div
+      className="w-full h-full"
+      style={{
+        background:
+          "linear-gradient(90deg, #F3E9DC 25%, #FBF6EC 37%, #F3E9DC 63%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.4s ease-in-out infinite",
+      }}
+    />
   );
 }
