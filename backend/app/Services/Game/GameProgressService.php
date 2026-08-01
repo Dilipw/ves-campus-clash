@@ -13,7 +13,7 @@ use App\Services\Game\Support\ValidatesGamePairs;
 
 class GameProgressService
 {
-    use ResolvesGameSession,ValidatesGamePairs;
+    use ResolvesGameSession, ValidatesGamePairs;
 
     /**
      * Save game progress.
@@ -37,32 +37,30 @@ class GameProgressService
                 $session
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | Never trust client-submitted progress blindly. Reject anything that
-            | is not a plausible continuation of the session's current state.
-            |--------------------------------------------------------------------------
-            */
-
             $data = $this->sanitizeProgressData(
                 $session,
                 $data
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Same server-authoritative timing as completion, so the progress
+            | endpoint never shows a timer value that disagrees with what
+            | complete() will ultimately persist.
+            |--------------------------------------------------------------------------
+            */
+            [$timeTaken, $remainingTime] = $this->calculateServerTiming(
+                $session
             );
 
             $levelledUp = $data['current_level'] > $session->current_level;
 
             $session = $this->updateProgress(
                 $session,
-                $data
+                $data,
+                $timeTaken,
+                $remainingTime
             );
-
-            /*
-            |--------------------------------------------------------------------------
-            | Only write a GameLog row for a significant event (level completed).
-            | Plain progress ticks (a move, a tick of the clock) still persist to
-            | the game_sessions row above, but no longer spam the game_logs table.
-            |--------------------------------------------------------------------------
-            */
 
             if ($levelledUp) {
                 $this->createLevelCompletedLog($session);
@@ -94,18 +92,11 @@ class GameProgressService
     }
 
     /**
-     * Validate and clamp client-submitted progress data against the
-     * session's current server-side state. Throws when the payload
-     * describes an impossible transition (e.g. going backwards,
-     * skipping levels, or exceeding configured bounds).
+     * Validate client-submitted gameplay data. Timing fields are no
+     * longer accepted or validated here — see calculateServerTiming().
      *
-     * IMPORTANT: matched_pairs is treated as a CUMULATIVE counter across
-     * the whole session (it never resets between levels — a player on
-     * level 2 who has matched 3 pairs so far this level should be
-     * reporting 8 + 3 = 11, not 3). This is the only design that lets
-     * a single monotonic-never-decreases field coexist with a per-level
-     * pair limit across a multi-level game, since each level can have
-     * a different pair count.
+     * matched_pairs is treated as a CUMULATIVE counter across the whole
+     * session, same as before.
      *
      * @param GameSession $session
      * @param array $data
@@ -145,35 +136,52 @@ class GameProgressService
             throw new BusinessException('Moves cannot decrease.', 422);
         }
 
-        if ($data['remaining_time'] > $session->remaining_time) {
-            throw new BusinessException('Remaining time cannot increase.', 422);
-        }
-
-        if ($data['remaining_time'] < 0) {
-            throw new BusinessException('Remaining time cannot be negative.', 422);
-        }
-
-        if ($data['time_taken'] < $session->time_taken) {
-            throw new BusinessException('Time taken cannot decrease.', 422);
-        }
-
-        // Score is never accepted from the client during progress updates;
-        // it is only ever computed server-side, at completion.
-        unset($data['score']);
+        // Score and timing are never accepted from the client.
+        unset($data['score'], $data['time_taken'], $data['remaining_time']);
 
         return $data;
     }
 
+    /**
+     * Derive authoritative time_taken / remaining_time from started_at
+     * vs. the current server clock. Duplicated intentionally from
+     * GameCompletionService — if you'd rather share it, pull both into
+     * a small trait (e.g. CalculatesGameTiming) used by both services.
+     *
+     * @param GameSession $session
+     * @return array{0: int, 1: int} [$timeTaken, $remainingTime]
+     */
+    private function calculateServerTiming(GameSession $session): array
+    {
+        $totalBudget = (int) collect(config('game.levels'))->sum('duration');
+
+        $elapsedSeconds = $session->started_at
+            ? $session->started_at->diffInSeconds(now())
+            : $totalBudget;
+
+        $timeTaken = max(0, min($elapsedSeconds, $totalBudget));
+
+        $remainingTime = max(0, $totalBudget - $timeTaken);
+
+        return [$timeTaken, $remainingTime];
+    }
 
     /**
-     * Update game session progress.
+     * Update game session progress with server-calculated timing.
      *
      * @param GameSession $session
      * @param array $data
+     * @param int $timeTaken
+     * @param int $remainingTime
      * @return GameSession
      */
-    private function updateProgress(GameSession $session, array $data): GameSession
-    {
+    private function updateProgress(
+        GameSession $session,
+        array $data,
+        int $timeTaken,
+        int $remainingTime
+    ): GameSession {
+
         $session->update([
 
             'current_level' => $data['current_level'],
@@ -182,9 +190,9 @@ class GameProgressService
 
             'matched_pairs' => $data['matched_pairs'],
 
-            'remaining_time' => $data['remaining_time'],
+            'remaining_time' => $remainingTime,
 
-            'time_taken' => $data['time_taken'],
+            'time_taken' => $timeTaken,
 
         ]);
 
@@ -193,7 +201,6 @@ class GameProgressService
 
     /**
      * Create a game log entry for a completed level.
-     * This is one of the whitelisted "significant" events.
      *
      * @param GameSession $session
      * @return void
