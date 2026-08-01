@@ -48,14 +48,7 @@ class GameCompletionService
                 $data
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | Server is the single source of truth for timing. We no longer trust
-            | time_taken / remaining_time sent by the client — we derive both from
-            | started_at vs. the current server clock. This is immune to client
-            | clock drift, tab-throttling, or a tampered payload.
-            |--------------------------------------------------------------------------
-            */
+            
             [$timeTaken, $remainingTime] = $this->calculateServerTiming(
                 $session
             );
@@ -144,10 +137,7 @@ class GameCompletionService
             throw new BusinessException('Invalid level progression.', 422);
         }
 
-        // Score, time_taken, and remaining_time are never trusted from the
-        // client. Score is computed below; timing is server-derived in
-        // calculateServerTiming(). Strip them so nothing downstream can
-        // accidentally read the client-submitted values.
+       
         unset($data['score'], $data['time_taken'], $data['remaining_time']);
 
         return $data;
@@ -166,15 +156,12 @@ class GameCompletionService
     {
         $totalBudget = $this->totalGameDurationSeconds();
 
-        // Defensive fallback: if started_at is somehow missing, treat the
-        // whole budget as elapsed rather than dividing by/against null.
+  
         $elapsedSeconds = $session->started_at
             ? $session->started_at->diffInSeconds(now())
             : $totalBudget;
 
-        // Clamp: elapsed can't exceed the total budget (covers the case
-        // where a completion request arrives late, e.g. after network
-        // retry) and can't be negative.
+        
         $timeTaken = max(0, min($elapsedSeconds, $totalBudget));
 
         $remainingTime = max(0, $totalBudget - $timeTaken);
