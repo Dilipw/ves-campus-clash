@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Adjust baseURL according to your Laravel local/production URL
 const API = axios.create({
   baseURL: 'https://api.sundigit.in/api/v1',
   headers: {
