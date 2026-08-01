@@ -1,7 +1,6 @@
 import { forwardRef } from "react";
 import {
     Trophy,
-    QrCode,
     Award,
     CheckCircle2
 } from "lucide-react";
@@ -14,6 +13,8 @@ import {
 
 export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
+
+const PLAY_URL = "https://ves.sundigit.in/";
 
 const c = {
     bg: "#FFFDF9",
@@ -48,8 +49,22 @@ function fallbackAvatar(name = "Player") {
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function QR({ size = 140 }) {
-    return <QrCode size={size} color={c.primary} strokeWidth={2.5} />;
+function QR({ size = 140, value = PLAY_URL }) {
+    // Real, scannable QR code (not a decorative icon). Rendered as a PNG
+    // so it also captures correctly if this card is exported to an
+    // image/canvas (e.g. html-to-image) for sharing.
+    const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size * 4}x${size * 4}&margin=0&data=${encodeURIComponent(value)}`;
+
+    return (
+        <img
+            src={src}
+            alt={`Scan to play at ${value}`}
+            crossOrigin="anonymous"
+            width={size}
+            height={size}
+            style={{ display: "block" }}
+        />
+    );
 }
 
 const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} }, ref) {
