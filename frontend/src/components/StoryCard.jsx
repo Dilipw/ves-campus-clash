@@ -57,8 +57,6 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
     const handle = participant.instagram_handle || "player";
     const photo = participant.profile_photo || fallbackAvatar(name);
     const score = result.score ?? 0;
-    const totalSeconds = result.time_taken ?? 0;
-    const time = `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
 
     const currentLevel = result.current_level ?? 1;
     const matchedPairs = result.matched_pairs ?? 0;
@@ -67,10 +65,11 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
     const levelLabel = ACHIEVEMENT_LABELS[currentLevel] || `Level ${currentLevel} Master`;
     const levelWord = levelWordForLevel(currentLevel);
 
+    // Time removed from the card. 3 stats now — Pairs, Moves, Level —
+    // so the grid below is 3 even columns instead of 2x2.
     const stats = [
         { label: "Pairs", value: `${matchedPairs}/${totalPairs}` },
         { label: "Moves", value: result.moves ?? 0 },
-        { label: "Time", value: time },
         { label: "Level", value: `Lvl ${currentLevel}`, accent: true },
     ];
 
@@ -102,8 +101,8 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                     SCAN • PLAY • SCORE
                 </div>
 
-                {/* NEW: unambiguous "what did they actually finish" pill.
-                    This is the single clearest signal on the card for what
+                {/* Unambiguous "what did they actually finish" pill —
+                    the single clearest signal on the card for what
                     stage of the game the result belongs to. */}
                 <div
                     style={{
@@ -125,13 +124,11 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                 </div>
             </div>
 
-            {/* Score – tighter gap + larger fonts */}
+            {/* Score */}
             <div style={{ marginTop: 28, textAlign: "center" }}>
                 <div style={{ fontSize: 32, fontWeight: 700, color: c.primary, textTransform: "uppercase", letterSpacing: 4 }}>
                     Final Score
                 </div>
-
-                {/* gap reduced: marginTop 2 instead of 8 */}
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 180, fontWeight: 800, lineHeight: 0.95, marginTop: 2 }}>
                     {score}
                 </div>
@@ -158,7 +155,7 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
 
             <Divider />
 
-            {/* Stats */}
+            {/* Stats — 3 even columns now that Time is gone */}
             <div
                 style={{
                     marginTop: 24,
@@ -167,8 +164,8 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                     borderRadius: 32,
                     padding: "30px 26px",
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 24,
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 16,
                 }}
             >
                 {stats.map(({ label, value, accent }) => (
@@ -180,15 +177,13 @@ const StoryCard = forwardRef(function StoryCard({ participant = {}, result = {} 
                             style={{
                                 marginTop: 8,
                                 fontFamily: "'Space Grotesk', sans-serif",
-                                fontSize: 56,
+                                fontSize: 52,
                                 fontWeight: 800,
                                 color: accent ? c.primary : c.text,
                             }}
                         >
                             {value}
                         </div>
-                        {/* NEW: tiny sub-label under Pairs so "7/7" doesn't
-                            read as "only 7 out of some bigger unknown number" */}
                         {label === "Pairs" && (
                             <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: isPerfect ? c.success : c.muted }}>
                                 {isPerfect ? "All pairs found" : `${levelWord} total`}
