@@ -50,8 +50,7 @@ export default function RegisterPage() {
     },
   });
 
-  // If a participant already exists locally, don't trust it blindly —
-  // ask the server what their real session status is and route accordingly.
+ 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("participant") || "null");
 
@@ -133,7 +132,7 @@ export default function RegisterPage() {
       const payload = error.response?.data;
 
       if (error.response?.status === 422) {
-        // Laravel-style field errors: { errors: { field: ["message"] } }
+   
         if (payload?.errors && typeof payload.errors === "object") {
           Object.keys(payload.errors).forEach((field) => {
             const fieldMessage = Array.isArray(payload.errors[field])
@@ -142,8 +141,7 @@ export default function RegisterPage() {
             setError(field, { type: "server", message: fieldMessage });
           });
         } else if (payload?.message) {
-          // Single-message errors: { success: false, message: "..." }
-          // e.g. "This Instagram handle is already registered."
+  
           const targetField = mapMessageToField(payload.message);
           if (targetField) {
             setError(targetField, { type: "server", message: payload.message });
