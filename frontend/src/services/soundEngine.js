@@ -1,8 +1,3 @@
-// Lightweight synth-based sound engine — no audio assets required.
-// Everything is generated with the Web Audio API so there's nothing to
-// host/bundle and nothing that can 404. Drop this file in your project
-// (e.g. src/services/soundEngine.js) and import { sfx, startAmbient,
-// stopAmbient, primeAudio } into GamePage.
 
 let ctx = null;
 
@@ -16,8 +11,6 @@ function getCtx() {
     return ctx;
 }
 
-// Browsers block audio until a user gesture — call this inside your
-// "Start Game" click handler so everything after it can play freely.
 export function primeAudio() {
     try {
         const audio = getCtx();

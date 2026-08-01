@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { gameApi, API_BASE_URL } from "../services/api";
 import ProtectedRoute, { STATUS } from "../components/ProtectedRoute";
+import { useGameSession } from "../context/GameSessionContext";
 import { sfx, startAmbient, stopAmbient, primeAudio } from "../services/soundEngine";
 import "./game.css";
 
@@ -72,6 +73,7 @@ export default function GamePage() {
 
 function GameBoard({ sessionData }) {
     const navigate = useNavigate();
+    const { refetch } = useGameSession();
     const participant = JSON.parse(localStorage.getItem("participant") || "{}");
     const sessionUuid = participant?.game_session?.uuid;
 
@@ -209,8 +211,15 @@ function GameBoard({ sessionData }) {
                 forceRender();
             }
 
-            // Purely cosmetic: show a brief celebration before handing off
-            // to the result page. Doesn't change what was submitted above.
+            // Sync the shared session context NOW, before navigating.
+            // Layout/GameSessionProvider persists across route changes
+            // (Outlet swap doesn't remount it), so without this the
+            // status on /result would still read stale "Playing" and
+            // ProtectedRoute would bounce the player straight back to
+            // /game.
+            await refetch();
+
+            
             const tier = getTier(scoreRef.current || 0);
             const copy = reason === "timeout"
                 ? { title: "Time's Up", sub: "The clock beat you to it this time." }
@@ -227,9 +236,9 @@ function GameBoard({ sessionData }) {
         } catch (err) {
             setError(err.response?.data?.message || "Could not save your result. Please check your connection.");
         }
-    }, [sessionUuid, levelIdx, currentRemainingBudget, navigate]);
+    }, [sessionUuid, levelIdx, currentRemainingBudget, navigate, refetch]);
 
-    // ---- explicit start (fires only on button press, not on mount) ----
+
 
     function enterBoard() {
         setBoard(buildDeck(LEVELS[levelIdx]));
@@ -248,6 +257,8 @@ function GameBoard({ sessionData }) {
             elapsedRef.current = 0;
             enterBoard();
             setAwaitingStart(false);
+   
+            refetch();
         } catch (err) {
             const alreadyStarted = err.response?.status === 409;
             if (alreadyStarted) {
@@ -255,6 +266,7 @@ function GameBoard({ sessionData }) {
                 // click, retry, second tab). Not a real failure — resume.
                 enterBoard();
                 setAwaitingStart(false);
+                refetch();
                 return;
             }
             setError(err.response?.data?.message || "Could not start the game.");
@@ -263,8 +275,6 @@ function GameBoard({ sessionData }) {
         }
     }
 
-    // Resume case: session was already Playing on load (e.g. refresh
-    // mid-game) — skip the Start screen entirely, drop into the board.
     const initRef = useRef(false);
     useEffect(() => {
         if (initRef.current) return;
@@ -367,10 +377,7 @@ function GameBoard({ sessionData }) {
                         prev.map((c) => (c.id === a.id || c.id === b.id ? { ...c, matched: true } : c))
                     );
 
-                    // Target for "this level is done" is the CUMULATIVE pair
-                    // count through this level (e.g. level 1 target = 8,
-                    // level 2 target = 8 + 10 = 18) — matches the backend's
-                    // cumulative cap exactly.
+                 
                     const cumulativeTarget = LEVELS
                         .slice(0, levelIdx + 1)
                         .reduce((sum, l) => sum + l.pairs, 0);
@@ -444,9 +451,6 @@ function GameBoard({ sessionData }) {
 
     const config = LEVELS[levelIdx];
 
-    // matchedPairsRef ab poore session ka cumulative count hai — UI mein
-    // sirf CURRENT level ke matches dikhane hain, isliye pehle wale
-    // levels ka total minus karke per-level count nikaalo.
     const previousLevelsTotal = LEVELS
         .slice(0, levelIdx)
         .reduce((sum, l) => sum + l.pairs, 0);

@@ -16,15 +16,11 @@ import ProtectedRoute, { STATUS } from "../components/ProtectedRoute";
 import StoryCard, { STORY_WIDTH, STORY_HEIGHT } from "../components/StoryCard";
 import { formatClock, totalPairsThroughLevel } from "../config/gameConfig";
 
-// Caption used everywhere we hand the image off to Instagram / native share.
-// Keep the handle first so it survives Instagram's caption truncation.
+
 const SHARE_CAPTION =
   "@ves.ac.in Campus Clash \u2014 I just cleared the board! Scan the campus QR and beat my score. #CampusClash #VESIT";
 
-// ---------------------------------------------------------------------
-// Entry point — gated behind a completed session. No "Play Again" here
-// by design (per brief: "one shot, one score — no replay from result").
-// ---------------------------------------------------------------------
+
 export default function ResultPage() {
   return (
     <ProtectedRoute allow={[STATUS.COMPLETED]}>
@@ -269,9 +265,7 @@ function ResultView({ sessionUuid }) {
         </h1>
       </div>
 
-      {/* Quick stats — scannable at a glance, no ambiguity about totals.
-          Gap is set inline (not via Tailwind's gap-2) so spacing renders
-          correctly even if the Tailwind build isn't picking up this file. */}
+     
       <div
         style={{
           marginBottom: 24,
@@ -393,7 +387,7 @@ function ResultView({ sessionUuid }) {
         )}
       </div>
 
-      {/* Caption — always available, not just as an unsupported-browser fallback */}
+     
       <div
         className="text-left"
         style={{
@@ -435,10 +429,7 @@ function ResultView({ sessionUuid }) {
       <p style={{ fontSize: 12, color: "#B8ACA4", marginTop: 16 }}>
         Post it to your Instagram Story and tag <strong style={{ color: "#F5EDE6" }}>@ves.ac.in</strong> to be featured.
       </p>
-
-      {/* Off-screen full-resolution render target for html2canvas.
-          Kept in the DOM (not display:none) since html2canvas needs
-          real layout to capture; pushed off-screen instead. */}
+      {/* Off-screen story card used for snapshotting */}
       <div style={{ position: "fixed", top: 0, left: "-99999px", pointerEvents: "none" }} aria-hidden="true">
         <StoryCard ref={cardRef} participant={result.participant} result={result.result} />
       </div>
