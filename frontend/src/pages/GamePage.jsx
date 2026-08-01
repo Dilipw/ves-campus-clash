@@ -89,22 +89,17 @@ function GameBoard({ sessionData }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
 
-    // Gate — true until the player has actually pressed "Start Game".
-    // A session with status Registered lands here first; a session
-    // that's already Playing (e.g. refresh mid-game) skips straight
-    // to the board.
     const [awaitingStart, setAwaitingStart] = useState(
         sessionData?.status === STATUS.REGISTERED
     );
     const [starting, setStarting] = useState(false);
 
-    // ---- visual/audio-only state (no gameplay effect) ------------------
     const [soundOn, setSoundOn] = useState(true);
     const soundOnRef = useRef(true);
     const [shakeIds, setShakeIds] = useState([]);
-    const [popups, setPopups] = useState([]); // floating combo text
-    const [banner, setBanner] = useState(null); // "Level 2" transition banner
-    const [celebration, setCelebration] = useState(null); // end-of-run overlay
+    const [popups, setPopups] = useState([]);
+    const [banner, setBanner] = useState(null);
+    const [celebration, setCelebration] = useState(null);
     const popupIdRef = useRef(0);
     const confetti = useMemo(() => makeConfetti(), [celebration?.key]);
 
@@ -118,26 +113,15 @@ function GameBoard({ sessionData }) {
         });
     }
 
-    // Backend tracks matched_pairs as a running TOTAL for the whole session
-    // (it rejects any sync where the value decreases). We need a separate
-    // per-level counter to know when the current level's board is cleared,
-    // Backend ab matched_pairs ko CUMULATIVE track karta hai poore session
-    // ke liye (kabhi reset nahi hota, aur cap bhi level ke hisaab se
-    // cumulative badhta hai: level 1 cap = 8, level 2 cap = 8+10 = 18).
-    // Isliye is counter ko level transition pe reset karne ki zaroorat
-    // nahi — bas hamesha increment hota rahega poore game session mein.
     const matchedPairsRef = useRef(sessionData?.matched_pairs || 0);
     const movesRef = useRef(sessionData?.moves || 0);
-    // `score` is authoritative only after `complete` responds — the
-    // backend computes real score at completion, not during play.
-    // We still send it on `progress` because the endpoint validates
-    // it as required; 0 is a safe placeholder mid-game.
     const scoreRef = useRef(sessionData?.score || 0);
     const streakRef = useRef(0);
     const elapsedRef = useRef(TOTAL_BUDGET - (sessionData?.remaining_time ?? TOTAL_BUDGET));
     const lastConfirmedRemainingRef = useRef(sessionData?.remaining_time ?? TOTAL_BUDGET);
     const levelDeadlineRef = useRef(null);
     const lastSyncRef = useRef(0);
+    const gameStartRef = useRef(null);
 
     const [display, setDisplay] = useState({
         matchedPairs: matchedPairsRef.current,
@@ -150,18 +134,15 @@ function GameBoard({ sessionData }) {
 
     function spawnPopup(text) {
         const id = ++popupIdRef.current;
-        const left = 20 + Math.random() * 60; // % across the board
+        const left = 20 + Math.random() * 60;
         setPopups((p) => [...p, { id, text, left }]);
         setTimeout(() => {
             setPopups((p) => p.filter((x) => x.id !== id));
         }, 900);
     }
 
-    // ---- server sync -------------------------------------------------
-
     const currentRemainingBudget = useCallback(() => {
         const raw = TOTAL_BUDGET - elapsedRef.current;
-        // Never report an increase over the last value the server accepted.
         const clamped = Math.min(raw, lastConfirmedRemainingRef.current);
         return Math.max(0, Math.round(clamped));
     }, []);
@@ -174,11 +155,11 @@ function GameBoard({ sessionData }) {
 
         const payload = {
             current_level: levelIdx + 1,
-            matched_pairs: matchedPairsRef.current, // cumulative
+            matched_pairs: matchedPairsRef.current,
             moves: movesRef.current,
             remaining_time: currentRemainingBudget(),
             time_taken: safeTimeTaken,
-            score: scoreRef.current, // required field on /progress
+            score: scoreRef.current,
             ...overrides,
         };
         try {
@@ -186,8 +167,6 @@ function GameBoard({ sessionData }) {
             const updated = res.data?.data || res.data;
             lastConfirmedRemainingRef.current = updated.remaining_time;
             lastSyncRef.current = Date.now();
-            // NOTE: /progress always echoes score: 0 server-side — real
-            // score only exists after /complete — deliberately not read here.
         } catch (err) {
             console.warn("progress sync failed", err.response?.data || err);
         }
@@ -200,26 +179,19 @@ function GameBoard({ sessionData }) {
         try {
             const res = await gameApi.complete(sessionUuid, {
                 current_level: levelIdx + 1,
-                matched_pairs: matchedPairsRef.current, // cumulative — includes all prior levels too
+                matched_pairs: matchedPairsRef.current,
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
             });
             const result = res.data?.data?.result || res.data?.result;
             if (result?.score != null) {
-                scoreRef.current = result.score; // real, final, server-computed score
+                scoreRef.current = result.score;
                 forceRender();
             }
 
-            // Sync the shared session context NOW, before navigating.
-            // Layout/GameSessionProvider persists across route changes
-            // (Outlet swap doesn't remount it), so without this the
-            // status on /result would still read stale "Playing" and
-            // ProtectedRoute would bounce the player straight back to
-            // /game.
             await refetch();
 
-            
             const tier = getTier(scoreRef.current || 0);
             const copy = reason === "timeout"
                 ? { title: "Time's Up", sub: "The clock beat you to it this time." }
@@ -238,11 +210,13 @@ function GameBoard({ sessionData }) {
         }
     }, [sessionUuid, levelIdx, currentRemainingBudget, navigate, refetch]);
 
-
-
     function enterBoard() {
         setBoard(buildDeck(LEVELS[levelIdx]));
-        levelDeadlineRef.current = Date.now() + LEVELS[levelIdx].duration * 1000;
+        const now = Date.now();
+        levelDeadlineRef.current = now + LEVELS[levelIdx].duration * 1000;
+        if (gameStartRef.current === null) {
+            gameStartRef.current = now - elapsedRef.current * 1000;
+        }
         setStarted(true);
         if (soundOnRef.current) startAmbient(levelIdx);
     }
@@ -250,20 +224,18 @@ function GameBoard({ sessionData }) {
     async function handleStartGame() {
         setStarting(true);
         setError(null);
-        primeAudio(); // user gesture — unlocks the AudioContext for everything after this
+        primeAudio();
         try {
             await gameApi.start(sessionUuid);
             lastConfirmedRemainingRef.current = TOTAL_BUDGET;
             elapsedRef.current = 0;
+            gameStartRef.current = null;
             enterBoard();
             setAwaitingStart(false);
-   
             refetch();
         } catch (err) {
             const alreadyStarted = err.response?.status === 409;
             if (alreadyStarted) {
-                // Session is legitimately already Playing server-side (double
-                // click, retry, second tab). Not a real failure — resume.
                 enterBoard();
                 setAwaitingStart(false);
                 refetch();
@@ -286,16 +258,15 @@ function GameBoard({ sessionData }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Stop any ambient loop if the component unmounts mid-game.
     useEffect(() => () => stopAmbient(), []);
-
-    // ---- master timer: one tick drives elapsed time + level clock -----
 
     useEffect(() => {
         if (!started) return;
 
         const tick = setInterval(() => {
-            elapsedRef.current += 0.2;
+            if (gameStartRef.current !== null) {
+                elapsedRef.current = Math.max(0, (Date.now() - gameStartRef.current) / 1000);
+            }
 
             const msLeftInLevel = levelDeadlineRef.current - Date.now();
             const timeLeftInLevel = Math.max(0, Math.ceil(msLeftInLevel / 1000));
@@ -314,18 +285,17 @@ function GameBoard({ sessionData }) {
         return () => clearInterval(tick);
     }, [started, syncProgress, completeGame]);
 
-    // Best-effort save if the player closes the tab mid-game.
     useEffect(() => {
         const handler = () => {
             if (!started || !sessionUuid) return;
             const payload = JSON.stringify({
                 game_session_uuid: sessionUuid,
                 current_level: levelIdx + 1,
-                matched_pairs: matchedPairsRef.current, // cumulative
+                matched_pairs: matchedPairsRef.current,
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
-                score: scoreRef.current, // required field on /progress
+                score: scoreRef.current,
             });
             navigator.sendBeacon?.(
                 `${API_BASE_URL}/game/progress`,
@@ -335,8 +305,6 @@ function GameBoard({ sessionData }) {
         window.addEventListener("beforeunload", handler);
         return () => window.removeEventListener("beforeunload", handler);
     }, [started, sessionUuid, levelIdx, currentRemainingBudget]);
-
-    // ---- card interaction ---------------------------------------------
 
     function onCardClick(cellId) {
         if (!started || locked) return;
@@ -358,11 +326,12 @@ function GameBoard({ sessionData }) {
             setTimeout(() => {
                 if (isMatch) {
                     streakRef.current += 1;
-                    matchedPairsRef.current += 1; // cumulative, never reset
+                    matchedPairsRef.current += 1;
 
                     const gotPowerUp = a.isPowerUp || b.isPowerUp;
                     if (gotPowerUp) {
-                        elapsedRef.current = Math.max(0, elapsedRef.current - 5); // +5s bonus
+                        gameStartRef.current += 5000;
+                        elapsedRef.current = Math.max(0, (Date.now() - gameStartRef.current) / 1000);
                         levelDeadlineRef.current += 5000;
                     }
 
@@ -377,7 +346,6 @@ function GameBoard({ sessionData }) {
                         prev.map((c) => (c.id === a.id || c.id === b.id ? { ...c, matched: true } : c))
                     );
 
-                 
                     const cumulativeTarget = LEVELS
                         .slice(0, levelIdx + 1)
                         .reduce((sum, l) => sum + l.pairs, 0);
@@ -392,8 +360,6 @@ function GameBoard({ sessionData }) {
                             setBoard(buildDeck(LEVELS[nextLevelIdx]));
                             levelDeadlineRef.current = Date.now() + LEVELS[nextLevelIdx].duration * 1000;
                             if (soundOnRef.current) startAmbient(nextLevelIdx);
-                            // No matched_pairs override — counter is cumulative
-                            // and already correct for the new current_level.
                             syncProgress({ current_level: nextLevelIdx + 1 });
                         } else {
                             completeGame("cleared");
@@ -429,7 +395,6 @@ function GameBoard({ sessionData }) {
         );
     }
 
-    // Start screen — shown for Registered sessions until the player taps Start.
     if (awaitingStart) {
         return (
             <div className="max-w-md mx-auto px-3 py-10 text-center">
