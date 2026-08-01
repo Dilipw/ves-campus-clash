@@ -12,7 +12,7 @@ const API = axios.create({
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    
+
     if (error.code === 'ECONNABORTED') {
       error.isTimeout = true;
     }
@@ -21,7 +21,7 @@ API.interceptors.response.use(
 );
 
 export const participantApi = {
- 
+
   register: (formData, config = {}) => {
     return API.post('/participants/register', formData, {
       headers: {
@@ -50,6 +50,9 @@ export const gameApi = {
 
   getStatus: (gameSessionUuid, config = {}) =>
     API.get(`/game/session/${gameSessionUuid}/status`, config),
+
+  getConfig: (config = {}) =>
+    API.get('/game/config', config),
 };
 
 export default API;
