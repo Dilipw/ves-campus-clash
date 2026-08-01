@@ -11,22 +11,22 @@ export default function FollowSection() {
 
   return (
     <section className="px-5 sm:px-6 pb-24">
-      <div className="max-w-sm mx-auto text-center">
-        <p className="font-mono text-[11px] tracking-widest text-text-lo uppercase">
-          Step 01 of 04
-        </p>
+      <div className="max-w-sm mx-auto text-center border-t border-ink-line pt-14">
         <h2
-          className="mt-2 font-display font-bold text-text-hi tracking-tight"
+          className="font-display font-bold text-text-hi tracking-tight"
           style={{ fontSize: "var(--fs-h3)" }}
         >
-          Unlock registration
+          Ready when you are.
         </h2>
+        <p className="mt-2 text-[14px] text-text-lo">
+          Same two steps as above — follow, then jump straight into registration.
+        </p>
 
-        <a
-          href="https://instagram.com/ves.ac.in"
+        
+        <a  href="https://instagram.com/ves.ac.in"
           target="_blank"
           rel="noreferrer"
-          className="mt-7 flex items-center justify-center gap-2.5 rounded-pill border border-ink-line bg-ink-soft py-3.5 font-body font-medium text-text-hi transition hover:border-punch/60"
+          className="mt-6 flex items-center justify-center gap-2.5 rounded-pill border border-ink-line bg-ink-soft py-3.5 font-body font-medium text-text-hi transition hover:border-punch/60"
         >
           <FaInstagram className="text-punch" />
           Follow @ves.ac.in
@@ -39,11 +39,6 @@ export default function FollowSection() {
           <span className="absolute inset-0 rounded-pill bg-volt opacity-40 blur-md -z-10" />
           I've followed — let's go
         </button>
-
-        <p className="mt-4 text-[13px] text-text-lo">
-          We check this at the door. Skip it and you won't get past
-          registration.
-        </p>
       </div>
     </section>
   );
