@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { participantApi, gameApi } from "../services/api";
+import { useGameSession } from "../context/GameSessionContext";
 import GameRulesModal from "../components/GameRulesModal";
 
-// Shared input styling so every field looks identical and error state
-// is applied in exactly one place instead of being repeated per-input.
 const fieldClass = (hasError) =>
-  `w-full bg-white border rounded-card px-3 py-2 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition-colors ${hasError ? "border-punch focus:ring-punch/50" : "border-paper-line focus:ring-punch/60"
+  `w-full bg-white border rounded-card px-3 py-2 text-body text-paper-hi placeholder:text-paper-lo/50 focus:outline-none focus:ring-2 focus:bg-white transition-colors ${
+    hasError ? "border-punch focus:ring-punch/50" : "border-paper-line focus:ring-punch/60"
   }`;
 
 const labelClass = "block font-display text-[12px] uppercase tracking-wider mb-1 font-bold text-paper-hi";
@@ -17,19 +17,24 @@ function FieldError({ message }) {
   return <p className="font-mono text-[11px] text-punch mt-1">{message}</p>;
 }
 
+const SUBMIT_TIMEOUT_MS = 20000;
+
 export default function RegisterPage() {
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "instant",
-    });
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, []);
+
   const navigate = useNavigate();
+  const { refetch } = useGameSession();
+
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+
+  const submitLockRef = useRef(false);
+  const photoObjectUrlRef = useRef(null);
 
   const {
     register,
@@ -37,7 +42,7 @@ export default function RegisterPage() {
     setValue,
     setError,
     clearErrors,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm({
     defaultValues: {
       full_name: "",
@@ -50,7 +55,6 @@ export default function RegisterPage() {
     },
   });
 
- 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("participant") || "null");
 
@@ -74,27 +78,41 @@ export default function RegisterPage() {
         }
       })
       .catch(() => {
-        // stale/invalid local data, let them re-register
         localStorage.removeItem("participant");
         setCheckingSession(false);
       });
   }, [navigate]);
 
+  useEffect(() => {
+    return () => {
+      if (photoObjectUrlRef.current) {
+        URL.revokeObjectURL(photoObjectUrlRef.current);
+      }
+    };
+  }, []);
+
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setPhotoPreview(URL.createObjectURL(file));
+      if (photoObjectUrlRef.current) {
+        URL.revokeObjectURL(photoObjectUrlRef.current);
+      }
+      const url = URL.createObjectURL(file);
+      photoObjectUrlRef.current = url;
+      setPhotoPreview(url);
       setValue("profile_photo", file);
     }
   };
 
   const removePhoto = () => {
+    if (photoObjectUrlRef.current) {
+      URL.revokeObjectURL(photoObjectUrlRef.current);
+      photoObjectUrlRef.current = null;
+    }
     setPhotoPreview(null);
     setValue("profile_photo", null);
   };
 
-  // Map a field-less server message to the form field it most likely refers to,
-  // so the person sees the error right next to the input that caused it.
   const mapMessageToField = (message) => {
     const lower = message.toLowerCase();
     if (lower.includes("instagram")) return "instagram_handle";
@@ -107,8 +125,14 @@ export default function RegisterPage() {
   };
 
   const onSubmit = async (data) => {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setIsSubmittingLocal(true);
     setApiError(null);
     clearErrors();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
 
     try {
       const formData = new FormData();
@@ -123,41 +147,53 @@ export default function RegisterPage() {
         formData.append("profile_photo", data.profile_photo);
       }
 
-      const response = await participantApi.register(formData);
+      const response = await participantApi.register(formData, {
+        signal: controller.signal,
+      });
       const participantData = response.data?.data || response.data;
 
-      localStorage.setItem("participant", JSON.stringify(participantData));
-      navigate("/game");
-    } catch (error) {
-      const payload = error.response?.data;
+      if (!participantData?.uuid) {
+        throw new Error("Registration succeeded but the server response was incomplete.");
+      }
 
-      if (error.response?.status === 422) {
-   
-        if (payload?.errors && typeof payload.errors === "object") {
-          Object.keys(payload.errors).forEach((field) => {
-            const fieldMessage = Array.isArray(payload.errors[field])
-              ? payload.errors[field][0]
-              : payload.errors[field];
-            setError(field, { type: "server", message: fieldMessage });
-          });
-        } else if (payload?.message) {
-  
-          const targetField = mapMessageToField(payload.message);
-          if (targetField) {
-            setError(targetField, { type: "server", message: payload.message });
+      localStorage.setItem("participant", JSON.stringify(participantData));
+      await refetch();
+      navigate("/game", { replace: true });
+    } catch (error) {
+      if (error.name === "CanceledError" || error.name === "AbortError") {
+        setApiError("This is taking longer than expected. Check your connection and try again.");
+      } else {
+        const payload = error.response?.data;
+
+        if (error.response?.status === 422) {
+          if (payload?.errors && typeof payload.errors === "object") {
+            Object.keys(payload.errors).forEach((field) => {
+              const fieldMessage = Array.isArray(payload.errors[field])
+                ? payload.errors[field][0]
+                : payload.errors[field];
+              setError(field, { type: "server", message: fieldMessage });
+            });
+          } else if (payload?.message) {
+            const targetField = mapMessageToField(payload.message);
+            if (targetField) {
+              setError(targetField, { type: "server", message: payload.message });
+            } else {
+              setApiError(payload.message);
+            }
           } else {
-            setApiError(payload.message);
+            setApiError("Please check your details and try again.");
           }
         } else {
-          setApiError("Please check your details and try again.");
+          setApiError(payload?.message || "Something went wrong. Please try again.");
         }
-      } else {
-        setApiError(payload?.message || "Something went wrong. Please try again.");
       }
+    } finally {
+      clearTimeout(timeoutId);
+      submitLockRef.current = false;
+      setIsSubmittingLocal(false);
     }
   };
 
-  // Avoid flashing the form while we confirm there's no active session
   if (checkingSession) {
     return (
       <div className="min-h-screen w-full bg-black flex items-center justify-center">
@@ -169,8 +205,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full bg-black px-4 sm:px-6 py-5 sm:py-5 font-body">
       <div className="max-w-5xl mx-auto">
-
-        {/* Page heading — sits directly on the black body */}
         <div className="text-center mb-8 sm:mb-10">
           <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-volt font-bold">
             VES Campus Clash
@@ -183,16 +217,11 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* The Ticket — info stub (left) joined to the registration coupon (right) */}
         <div className="relative flex flex-col lg:flex-row gap-4 lg:gap-0">
-
-          {/* Perforation notches, desktop only, sit exactly on the seam */}
           <div className="hidden lg:block absolute -top-3 left-[380px] -translate-x-1/2 h-6 w-6 rounded-full bg-black z-10" />
           <div className="hidden lg:block absolute -bottom-3 left-[380px] -translate-x-1/2 h-6 w-6 rounded-full bg-black z-10" />
 
-          {/* Stub — event info, order 2 on mobile so the form leads */}
           <div className="order-2 lg:order-1 lg:w-[380px] lg:shrink-0 bg-ink-soft border border-ink-line rounded-ticket lg:rounded-r-none lg:rounded-l-ticket p-5 sm:p-6 space-y-4">
-
             <div>
               <h2 className="font-display text-lg uppercase text-text-hi leading-tight">
                 One Student. One Shot. One Score.
@@ -203,7 +232,6 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* Quick Stats */}
             <div className="grid grid-cols-3 divide-x divide-ink-line border-y border-ink-line py-2.5">
               <div className="text-center">
                 <span className="block font-display text-lg font-bold text-volt">2</span>
@@ -219,7 +247,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Journey */}
             <ol className="space-y-2 text-small text-text-hi">
               <li className="flex gap-3">
                 <span className="font-mono text-volt font-bold shrink-0">01</span>
@@ -243,7 +270,6 @@ export default function RegisterPage() {
               </li>
             </ol>
 
-            {/* Fair Play */}
             <div className="border-t border-ink-line pt-3">
               <h3 className="font-display uppercase text-small text-volt mb-1.5">Fair Play</h3>
               <ul className="grid grid-cols-2 gap-y-1 gap-x-2 text-[13px] text-text-hi">
@@ -263,7 +289,6 @@ export default function RegisterPage() {
               <span>→</span>
             </button>
 
-            {/* Reward */}
             <div className="bg-paper/10 border border-paper-line/20 rounded-card p-3 flex items-start gap-3">
               <span className="text-punch text-xl shrink-0">🏆</span>
               <div>
@@ -275,10 +300,12 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Coupon — the registration form, order 1 on mobile, right side on desktop */}
           <div className="order-1 lg:order-2 flex-1 min-w-0">
-            <div className="bg-paper text-paper-hi rounded-ticket lg:rounded-l-none lg:rounded-r-ticket shadow-ticket border border-paper-line lg:border-l-0 overflow-hidden h-full">
-
+            <div
+              className={`bg-paper text-paper-hi rounded-ticket lg:rounded-l-none lg:rounded-r-ticket shadow-ticket border border-paper-line lg:border-l-0 overflow-hidden h-full transition-opacity duration-200 ${
+                isSubmittingLocal ? "opacity-90" : "opacity-100"
+              }`}
+            >
               <header className="px-5 py-4 border-b border-dashed border-paper-line">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-mono text-[10px] uppercase text-punch font-bold tracking-widest">
@@ -313,8 +340,7 @@ export default function RegisterPage() {
                 className="px-5 py-5 space-y-5"
                 noValidate
               >
-                {/* Section 1 — who you are */}
-                <fieldset className="space-y-3">
+                <fieldset className="space-y-3" disabled={isSubmittingLocal}>
                   <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
                     Your details
                   </legend>
@@ -370,8 +396,7 @@ export default function RegisterPage() {
                   </div>
                 </fieldset>
 
-                {/* Section 2 — academic info */}
-                <fieldset className="space-y-3">
+                <fieldset className="space-y-3" disabled={isSubmittingLocal}>
                   <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
                     Academic details
                   </legend>
@@ -433,8 +458,7 @@ export default function RegisterPage() {
                   </div>
                 </fieldset>
 
-                {/* Section 3 — social + confirmation */}
-                <fieldset className="space-y-3">
+                <fieldset className="space-y-3" disabled={isSubmittingLocal}>
                   <legend className="font-display text-[12px] uppercase tracking-widest text-paper-lo mb-1">
                     Instagram
                   </legend>
@@ -475,10 +499,10 @@ export default function RegisterPage() {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmittingLocal}
                   className="w-full bg-punch hover:bg-punch-dim disabled:opacity-50 disabled:cursor-not-allowed text-text-hi rounded-pill py-3 font-display text-base sm:text-h3 tracking-wide uppercase transition-all transform active:scale-[0.98] shadow-soft cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? (
+                  {isSubmittingLocal ? (
                     <>
                       <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                       <span>Processing…</span>
@@ -490,7 +514,6 @@ export default function RegisterPage() {
               </form>
             </div>
           </div>
-
         </div>
       </div>
 
