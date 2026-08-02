@@ -8,8 +8,6 @@ import "./game.css";
 
 const ICONS = ["⚡", "🔥", "⭐", "🎯", "💎", "🚀", "❤️", "🌟", "🎓", "🏆"];
 
-// Anti-cheat checkpoint interval: server compares periodic snapshots
-// against the final `complete` payload.
 const SYNC_INTERVAL_MS = 5000;
 
 const SCORE_TIERS = { gold: 1500, silver: 800 };
@@ -40,40 +38,122 @@ function buildDeck(levelConfig) {
     return deck.map((icon, id) => ({ id, icon, matched: false, isPowerUp: id === powerUpIdx }));
 }
 
-function boardStorageKey(uuid) {
-    return `mm_board_${uuid}`;
+function countMatched(board) {
+    return board.filter((c) => c.matched).length / 2;
 }
 
-function loadStoredBoard(uuid) {
+function sumPairs(LEVELS, uptoIdxExclusive) {
+    return LEVELS.slice(0, uptoIdxExclusive).reduce((sum, l) => sum + l.pairs, 0);
+}
+
+function totalPairsAllLevels(LEVELS) {
+    return LEVELS.reduce((sum, l) => sum + l.pairs, 0);
+}
+
+function hasResumableLocalProgress(sessionUuid, LEVELS) {
+    const local = loadStoredProgress(sessionUuid);
+    if (!local) return false;
+    const idx = Math.min(Math.max(0, local.levelIdx), LEVELS.length - 1);
+    const boardOk = Array.isArray(local.board) && local.board.length === LEVELS[idx].pairs * 2;
+    if (!boardOk) return false;
+    const baseline = (local.matchedPairsTotal || 0) - countMatched(local.board);
+    if (baseline !== sumPairs(LEVELS, idx)) return false;
+    return idx > 0 || countMatched(local.board) > 0;
+}
+
+function progressStorageKey(uuid) {
+    return `mm_progress_${uuid}`;
+}
+
+function loadStoredProgress(uuid) {
     if (!uuid) return null;
     try {
-        const raw = localStorage.getItem(boardStorageKey(uuid));
+        const raw = localStorage.getItem(progressStorageKey(uuid));
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
     }
 }
 
-function saveStoredBoard(uuid, levelIdx, board) {
+function saveStoredProgress(uuid, data) {
     if (!uuid) return;
     try {
-        localStorage.setItem(boardStorageKey(uuid), JSON.stringify({ levelIdx, board }));
-    } catch {
-        // storage full/unavailable — worst case the board just won't survive a refresh
-    }
-}
-
-function clearStoredBoard(uuid) {
-    if (!uuid) return;
-    try {
-        localStorage.removeItem(boardStorageKey(uuid));
+        localStorage.setItem(progressStorageKey(uuid), JSON.stringify(data));
     } catch {
         // ignore
     }
 }
 
-function countMatched(board) {
-    return board.filter((c) => c.matched).length;
+function clearStoredProgress(uuid) {
+    if (!uuid) return;
+    try {
+        localStorage.removeItem(progressStorageKey(uuid));
+    } catch {
+        // ignore
+    }
+}
+
+function resolveStartState(sessionUuid, sessionData, LEVELS, TOTAL_BUDGET) {
+    const clampLevel = (idx) => Math.min(Math.max(0, idx), LEVELS.length - 1);
+
+    const serverLevelIdx = clampLevel(
+        sessionData?.status === STATUS.PLAYING ? (sessionData.current_level || 1) - 1 : 0
+    );
+    const serverMatchedPairs = sessionData?.matched_pairs || 0;
+    const serverMoves = sessionData?.moves || 0;
+    const serverScore = sessionData?.score || 0;
+    const serverElapsed = TOTAL_BUDGET - (sessionData?.remaining_time ?? TOTAL_BUDGET);
+    const serverRemainingBudget = sessionData?.remaining_time ?? TOTAL_BUDGET;
+
+    const local = loadStoredProgress(sessionUuid);
+    const localLevelIdx = local ? clampLevel(local.levelIdx) : -1;
+    const maxPairs = totalPairsAllLevels(LEVELS);
+
+    const localBoardValidForLevel =
+        local &&
+        localLevelIdx >= 0 &&
+        Array.isArray(local.board) &&
+        local.board.length === LEVELS[localLevelIdx].pairs * 2;
+
+    const localBaseline = localBoardValidForLevel
+        ? (local.matchedPairsTotal || 0) - countMatched(local.board)
+        : null;
+    const expectedBaseline = localLevelIdx >= 0 ? sumPairs(LEVELS, localLevelIdx) : null;
+    const localIsConsistent = localBoardValidForLevel && localBaseline === expectedBaseline;
+
+    const localIsAhead =
+        localIsConsistent &&
+        (localLevelIdx > serverLevelIdx ||
+            (localLevelIdx === serverLevelIdx && local.matchedPairsTotal > serverMatchedPairs));
+
+    if (localIsAhead) {
+        return {
+            levelIdx: localLevelIdx,
+            board: local.board,
+            matchedPairsTotal: Math.min(local.matchedPairsTotal, maxPairs),
+            movesTotal: local.movesTotal,
+            scoreTotal: local.scoreTotal,
+            elapsedSeconds: local.elapsedSeconds,
+            remainingBudget: Math.max(0, TOTAL_BUDGET - local.elapsedSeconds),
+        };
+    }
+
+    clearStoredProgress(sessionUuid);
+
+    const localBoardReusable =
+        localBoardValidForLevel &&
+        localLevelIdx === serverLevelIdx &&
+        (serverMatchedPairs - sumPairs(LEVELS, serverLevelIdx)) === countMatched(local.board);
+
+    return {
+        levelIdx: serverLevelIdx,
+        board: localBoardReusable ? local.board : buildDeck(LEVELS[serverLevelIdx]),
+        matchedPairsTotal: Math.min(serverMatchedPairs, maxPairs),
+        movesTotal: serverMoves,
+        scoreTotal: serverScore,
+        elapsedSeconds: serverElapsed,
+        remainingBudget: serverRemainingBudget,
+    };
 }
 
 function makeConfetti(count = 26) {
@@ -147,21 +227,30 @@ function GameBoard({ sessionData, gameConfig }) {
     const LEVELS = gameConfig.levels;
     const TOTAL_BUDGET = gameConfig.total_budget_seconds ??
         LEVELS.reduce((sum, l) => sum + l.duration, 0);
+    const MAX_PAIRS = totalPairsAllLevels(LEVELS);
 
-    const startingLevel = sessionData?.status === STATUS.PLAYING
-        ? Math.max(1, sessionData.current_level)
-        : 1;
+    const resolvedInitRef = useRef(null);
+    if (resolvedInitRef.current === null) {
+        resolvedInitRef.current = resolveStartState(sessionUuid, sessionData, LEVELS, TOTAL_BUDGET);
+    }
+    const resolved = resolvedInitRef.current;
 
-    const [levelIdx, setLevelIdx] = useState(startingLevel - 1);
+    const localHasProgressRef = useRef(null);
+    if (localHasProgressRef.current === null) {
+        localHasProgressRef.current = hasResumableLocalProgress(sessionUuid, LEVELS);
+    }
+    const localHasProgress = localHasProgressRef.current;
+
+    const [levelIdx, setLevelIdx] = useState(resolved.levelIdx);
     const [board, setBoard] = useState([]);
     const [flipped, setFlipped] = useState([]);
     const [locked, setLocked] = useState(false);
     const [started, setStarted] = useState(false);
-    const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    const [completeFailed, setCompleteFailed] = useState(false);
 
     const [awaitingStart, setAwaitingStart] = useState(
-        sessionData?.status === STATUS.REGISTERED
+        sessionData?.status === STATUS.REGISTERED && !localHasProgress
     );
     const [starting, setStarting] = useState(false);
 
@@ -184,31 +273,34 @@ function GameBoard({ sessionData, gameConfig }) {
         });
     }
 
-    const matchedPairsRef = useRef(sessionData?.matched_pairs || 0);
-    const movesRef = useRef(sessionData?.moves || 0);
-    const scoreRef = useRef(sessionData?.score || 0);
+    const matchedPairsRef = useRef(resolved.matchedPairsTotal);
+    const movesRef = useRef(resolved.movesTotal);
+    const scoreRef = useRef(resolved.scoreTotal);
     const streakRef = useRef(0);
-    const elapsedRef = useRef(TOTAL_BUDGET - (sessionData?.remaining_time ?? TOTAL_BUDGET));
-    const lastConfirmedRemainingRef = useRef(sessionData?.remaining_time ?? TOTAL_BUDGET);
+    const elapsedRef = useRef(resolved.elapsedSeconds);
+    const lastConfirmedRemainingRef = useRef(resolved.remainingBudget);
     const levelDeadlineRef = useRef(null);
     const lastSyncRef = useRef(0);
     const gameStartRef = useRef(null);
+    const pendingCompleteReasonRef = useRef(null);
 
-    const levelBaselineRef = useRef(matchedPairsRef.current);
+    const levelBaselineRef = useRef(resolved.matchedPairsTotal - countMatched(resolved.board));
+
+    const boardRef = useRef(resolved.board);
+    const levelIdxRef = useRef(resolved.levelIdx);
+    useEffect(() => { boardRef.current = board; }, [board]);
+    useEffect(() => { levelIdxRef.current = levelIdx; }, [levelIdx]);
 
     const initialPriorLevelsDuration = LEVELS
-        .slice(0, levelIdx)
+        .slice(0, resolved.levelIdx)
         .reduce((sum, l) => sum + l.duration, 0);
     const initialTimeSpentInLevel = Math.max(
         0,
-        Math.min(LEVELS[levelIdx].duration, elapsedRef.current - initialPriorLevelsDuration)
+        Math.min(LEVELS[resolved.levelIdx].duration, resolved.elapsedSeconds - initialPriorLevelsDuration)
     );
 
     const [display, setDisplay] = useState({
-        matchedPairs: matchedPairsRef.current,
-        moves: movesRef.current,
-        score: scoreRef.current,
-        timeLeftInLevel: LEVELS[levelIdx].duration - initialTimeSpentInLevel,
+        timeLeftInLevel: LEVELS[resolved.levelIdx].duration - initialTimeSpentInLevel,
     });
 
     const forceRender = () => setDisplay((d) => ({ ...d }));
@@ -220,6 +312,17 @@ function GameBoard({ sessionData, gameConfig }) {
         setTimeout(() => {
             setPopups((p) => p.filter((x) => x.id !== id));
         }, 900);
+    }
+
+    function persistProgress(boardOverride, levelIdxOverride) {
+        saveStoredProgress(sessionUuid, {
+            levelIdx: levelIdxOverride ?? levelIdxRef.current,
+            board: boardOverride ?? boardRef.current,
+            matchedPairsTotal: matchedPairsRef.current,
+            movesTotal: movesRef.current,
+            scoreTotal: scoreRef.current,
+            elapsedSeconds: elapsedRef.current,
+        });
     }
 
     const currentRemainingBudget = useCallback(() => {
@@ -235,8 +338,8 @@ function GameBoard({ sessionData, gameConfig }) {
             : 0;
 
         const payload = {
-            current_level: levelIdx + 1,
-            matched_pairs: matchedPairsRef.current,
+            current_level: levelIdxRef.current + 1,
+            matched_pairs: Math.min(matchedPairsRef.current, MAX_PAIRS),
             moves: movesRef.current,
             remaining_time: currentRemainingBudget(),
             time_taken: safeTimeTaken,
@@ -251,21 +354,23 @@ function GameBoard({ sessionData, gameConfig }) {
         } catch (err) {
             console.warn("progress sync failed", err.response?.data || err);
         }
-    }, [sessionUuid, levelIdx, currentRemainingBudget]);
+    }, [sessionUuid, currentRemainingBudget]);
 
     const completeGame = useCallback(async (reason) => {
+        pendingCompleteReasonRef.current = reason;
         setStarted(false);
         setLocked(true);
+        setCompleteFailed(false);
         stopAmbient();
         try {
             const res = await gameApi.complete(sessionUuid, {
-                current_level: levelIdx + 1,
-                matched_pairs: matchedPairsRef.current,
+                current_level: levelIdxRef.current + 1,
+                matched_pairs: Math.min(matchedPairsRef.current, MAX_PAIRS),
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
             });
-            clearStoredBoard(sessionUuid);
+            clearStoredProgress(sessionUuid);
             const result = res.data?.data?.result || res.data?.result;
             if (result?.score != null) {
                 scoreRef.current = result.score;
@@ -289,54 +394,63 @@ function GameBoard({ sessionData, gameConfig }) {
             }, reason === "timeout" ? 1200 : 1700);
         } catch (err) {
             setError(err.response?.data?.message || "Could not save your result. Please check your connection.");
+            setCompleteFailed(true);
         }
-    }, [sessionUuid, levelIdx, currentRemainingBudget, navigate, refetch]);
+    }, [sessionUuid, currentRemainingBudget, navigate, refetch]);
 
-    function enterBoard() {
-        const expectedSize = LEVELS[levelIdx].pairs * 2;
-        const stored = loadStoredBoard(sessionUuid);
-        const previousLevelsTotal = LEVELS
-            .slice(0, levelIdx)
-            .reduce((sum, l) => sum + l.pairs, 0);
-
-        const hasValidStoredBoard =
-            stored &&
-            stored.levelIdx === levelIdx &&
-            Array.isArray(stored.board) &&
-            stored.board.length === expectedSize;
-
-        const nextBoard = hasValidStoredBoard ? stored.board : buildDeck(LEVELS[levelIdx]);
-        const matchedOnBoard = countMatched(nextBoard);
-
-        if (hasValidStoredBoard) {
-            matchedPairsRef.current = previousLevelsTotal + matchedOnBoard;
-            levelBaselineRef.current = previousLevelsTotal;
+    function handleLevelCleared(clearedLevelIdx) {
+        if (clearedLevelIdx < LEVELS.length - 1) {
+            const nextLevelIdx = clearedLevelIdx + 1;
+            if (soundOnRef.current) sfx.levelUp();
+            setBanner(`Level ${nextLevelIdx + 1}`);
+            setTimeout(() => setBanner(null), 1300);
+            const nextLevelBoard = buildDeck(LEVELS[nextLevelIdx]);
+            setLevelIdx(nextLevelIdx);
+            setBoard(nextLevelBoard);
+            levelBaselineRef.current = matchedPairsRef.current;
+            levelDeadlineRef.current = Date.now() + LEVELS[nextLevelIdx].duration * 1000;
+            persistProgress(nextLevelBoard, nextLevelIdx);
+            if (soundOnRef.current) startAmbient(nextLevelIdx);
+            syncProgress({ current_level: nextLevelIdx + 1 });
         } else {
-         
-            levelBaselineRef.current = Math.max(0, matchedPairsRef.current - matchedOnBoard);
+            completeGame("cleared");
         }
+    }
 
-        saveStoredBoard(sessionUuid, levelIdx, nextBoard);
-        setBoard(nextBoard);
+    function enterBoard(state) {
+        setLevelIdx(state.levelIdx);
+        setBoard(state.board);
+        matchedPairsRef.current = state.matchedPairsTotal;
+        movesRef.current = state.movesTotal;
+        scoreRef.current = state.scoreTotal;
+        elapsedRef.current = state.elapsedSeconds;
+        lastConfirmedRemainingRef.current = state.remainingBudget;
+        levelBaselineRef.current = state.matchedPairsTotal - countMatched(state.board);
+        levelIdxRef.current = state.levelIdx;
+        boardRef.current = state.board;
+
+        persistProgress(state.board, state.levelIdx);
 
         const now = Date.now();
-
         const priorLevelsDuration = LEVELS
-            .slice(0, levelIdx)
+            .slice(0, state.levelIdx)
             .reduce((sum, l) => sum + l.duration, 0);
         const timeSpentInLevel = Math.max(
             0,
-            Math.min(LEVELS[levelIdx].duration, elapsedRef.current - priorLevelsDuration)
+            Math.min(LEVELS[state.levelIdx].duration, state.elapsedSeconds - priorLevelsDuration)
         );
-        const remainingInLevel = LEVELS[levelIdx].duration - timeSpentInLevel;
+        const remainingInLevel = LEVELS[state.levelIdx].duration - timeSpentInLevel;
 
         levelDeadlineRef.current = now + remainingInLevel * 1000;
+        gameStartRef.current = now - state.elapsedSeconds * 1000;
 
-        if (gameStartRef.current === null) {
-            gameStartRef.current = now - elapsedRef.current * 1000;
-        }
         setStarted(true);
-        if (soundOnRef.current) startAmbient(levelIdx);
+        if (soundOnRef.current) startAmbient(state.levelIdx);
+        forceRender();
+
+        if (countMatched(state.board) === LEVELS[state.levelIdx].pairs) {
+            handleLevelCleared(state.levelIdx);
+        }
     }
 
     async function handleStartGame() {
@@ -345,17 +459,23 @@ function GameBoard({ sessionData, gameConfig }) {
         primeAudio();
         try {
             await gameApi.start(sessionUuid);
-            clearStoredBoard(sessionUuid);
-            lastConfirmedRemainingRef.current = TOTAL_BUDGET;
-            elapsedRef.current = 0;
-            gameStartRef.current = null;
-            enterBoard();
+            clearStoredProgress(sessionUuid);
+            enterBoard({
+                levelIdx: 0,
+                board: buildDeck(LEVELS[0]),
+                matchedPairsTotal: 0,
+                movesTotal: 0,
+                scoreTotal: 0,
+                elapsedSeconds: 0,
+                remainingBudget: TOTAL_BUDGET,
+            });
             setAwaitingStart(false);
             refetch();
         } catch (err) {
             const alreadyStarted = err.response?.status === 409;
             if (alreadyStarted) {
-                enterBoard();
+                const resolvedNow = resolveStartState(sessionUuid, sessionData, LEVELS, TOTAL_BUDGET);
+                enterBoard(resolvedNow);
                 setAwaitingStart(false);
                 refetch();
                 return;
@@ -370,9 +490,10 @@ function GameBoard({ sessionData, gameConfig }) {
     useEffect(() => {
         if (initRef.current) return;
         initRef.current = true;
-        if (sessionData?.status === STATUS.PLAYING) {
+        if (sessionData?.status === STATUS.PLAYING || localHasProgress) {
             primeAudio();
-            enterBoard();
+            enterBoard(resolved);
+            setAwaitingStart(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -398,6 +519,7 @@ function GameBoard({ sessionData, gameConfig }) {
 
             if (Date.now() - lastSyncRef.current > SYNC_INTERVAL_MS) {
                 syncProgress();
+                persistProgress();
             }
         }, 200);
 
@@ -407,9 +529,10 @@ function GameBoard({ sessionData, gameConfig }) {
     useEffect(() => {
         const handler = () => {
             if (!started || !sessionUuid) return;
+            persistProgress();
             const payload = JSON.stringify({
                 game_session_uuid: sessionUuid,
-                current_level: levelIdx + 1,
+                current_level: levelIdxRef.current + 1,
                 matched_pairs: matchedPairsRef.current,
                 moves: movesRef.current,
                 remaining_time: currentRemainingBudget(),
@@ -423,7 +546,7 @@ function GameBoard({ sessionData, gameConfig }) {
         };
         window.addEventListener("beforeunload", handler);
         return () => window.removeEventListener("beforeunload", handler);
-    }, [started, sessionUuid, levelIdx, currentRemainingBudget]);
+    }, [started, sessionUuid, currentRemainingBudget]);
 
     function onCardClick(cellId) {
         if (!started || locked) return;
@@ -445,13 +568,17 @@ function GameBoard({ sessionData, gameConfig }) {
             setTimeout(() => {
                 if (isMatch) {
                     streakRef.current += 1;
-                    matchedPairsRef.current += 1;
+                    matchedPairsRef.current = Math.min(matchedPairsRef.current + 1, MAX_PAIRS);
 
                     const gotPowerUp = a.isPowerUp || b.isPowerUp;
                     if (gotPowerUp) {
                         gameStartRef.current += 5000;
                         elapsedRef.current = Math.max(0, (Date.now() - gameStartRef.current) / 1000);
                         levelDeadlineRef.current += 5000;
+                        lastConfirmedRemainingRef.current = Math.min(
+                            TOTAL_BUDGET,
+                            lastConfirmedRemainingRef.current + 5
+                        );
                     }
 
                     if (soundOnRef.current) {
@@ -461,36 +588,16 @@ function GameBoard({ sessionData, gameConfig }) {
                     if (gotPowerUp) spawnPopup("+5s ⚡");
                     else if (streakRef.current >= 2) spawnPopup(`${streakRef.current}x combo!`);
 
-                    setBoard((prev) => {
-                        const updated = prev.map((c) =>
-                            c.id === a.id || c.id === b.id ? { ...c, matched: true } : c
-                        );
-                        saveStoredBoard(sessionUuid, levelIdx, updated);
-                        return updated;
-                    });
+                    const updatedBoard = board.map((c) =>
+                        c.id === a.id || c.id === b.id ? { ...c, matched: true } : c
+                    );
+                    setBoard(updatedBoard);
+                    persistProgress(updatedBoard, levelIdx);
 
-                    // Completion is judged against this board's own baseline,
-                    // not a cumulative total across all levels — see
-                    // levelBaselineRef above.
                     const cumulativeTarget = levelBaselineRef.current + LEVELS[levelIdx].pairs;
 
                     if (matchedPairsRef.current === cumulativeTarget) {
-                        if (levelIdx < LEVELS.length - 1) {
-                            const nextLevelIdx = levelIdx + 1;
-                            if (soundOnRef.current) sfx.levelUp();
-                            setBanner(`Level ${nextLevelIdx + 1}`);
-                            setTimeout(() => setBanner(null), 1300);
-                            const nextLevelBoard = buildDeck(LEVELS[nextLevelIdx]);
-                            setLevelIdx(nextLevelIdx);
-                            setBoard(nextLevelBoard);
-                            saveStoredBoard(sessionUuid, nextLevelIdx, nextLevelBoard);
-                            levelBaselineRef.current = matchedPairsRef.current;
-                            levelDeadlineRef.current = Date.now() + LEVELS[nextLevelIdx].duration * 1000;
-                            if (soundOnRef.current) startAmbient(nextLevelIdx);
-                            syncProgress({ current_level: nextLevelIdx + 1 });
-                        } else {
-                            completeGame("cleared");
-                        }
+                        handleLevelCleared(levelIdx);
                     }
                 } else {
                     streakRef.current = 0;
@@ -506,15 +613,7 @@ function GameBoard({ sessionData, gameConfig }) {
         }
     }
 
-    if (busy) {
-        return (
-            <div className="w-full h-[60vh] flex items-center justify-center">
-                <span className="h-6 w-6 rounded-full border-2 border-punch border-t-transparent animate-spin" />
-            </div>
-        );
-    }
-
-    if (error) {
+    if (error && !completeFailed) {
         return (
             <div className="max-w-md mx-auto mt-10 p-4 bg-punch/10 border border-punch rounded-card text-punch text-small font-mono">
                 {error}
@@ -653,6 +752,19 @@ function GameBoard({ sessionData, gameConfig }) {
                     </div>
                     <span>Moves: {movesRef.current}</span>
                 </div>
+
+                {completeFailed && (
+                    <div className="mt-3 p-3 bg-punch/10 border border-punch rounded-card text-punch text-small font-mono flex items-center justify-between gap-3">
+                        <span>{error}</span>
+                        <button
+                            type="button"
+                            onClick={() => completeGame(pendingCompleteReasonRef.current)}
+                            className="shrink-0 bg-punch hover:bg-punch-dim text-text-hi rounded-pill px-3 py-1 text-small font-display uppercase transition"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
