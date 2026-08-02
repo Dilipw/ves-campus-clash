@@ -9,13 +9,16 @@ VES Campus Clash is a full stack web application built to deliver an interactive
 **Live Application**
 https://ves.sundigit.in/
 
-## 3. GitHub Repositories
+## 3. GitHub Repository
 
-**Frontend Repository**
-https://github.com/Dilipw/ves-campus-clash-frontend
+**Repository**
 
-**Backend Repository**
-https://github.com/Dilipw/ves-campus-clash-backend
+https://github.com/Dilipw/ves-campus-clash
+
+**Project Structure**
+
+- Frontend Folder: https://github.com/Dilipw/ves-campus-clash/tree/main/frontend
+- Backend Folder: https://github.com/Dilipw/ves-campus-clash/tree/main/backend
 
 ## 4. Technology Stack
 
