@@ -12,36 +12,50 @@ function getStoredParticipant() {
 }
 
 export function GameSessionProvider({ children }) {
-  const [state, setState] = useState({ loading: true, status: null, data: null });
+  const [state, setState] = useState({ loading: true, status: null, data: null, error: null });
 
   const refetch = useCallback(() => {
     const stored = getStoredParticipant();
     const sessionUuid = stored?.game_session?.uuid;
 
     if (!sessionUuid) {
-      setState({ loading: false, status: null, data: null });
+      setState({ loading: false, status: null, data: null, error: null });
       return Promise.resolve();
     }
 
-    setState((s) => ({ ...s, loading: true }));
+    setState((s) => ({ ...s, loading: true, error: null }));
 
     return gameApi
       .getStatus(sessionUuid)
       .then((res) => {
         const data = res.data?.data || res.data;
 
-        // Keep localStorage in sync so a hard refresh isn't wildly stale
         const current = getStoredParticipant();
         if (current) {
           current.game_session = { ...current.game_session, status: data.status };
           localStorage.setItem("participant", JSON.stringify(current));
         }
 
-        setState({ loading: false, status: data.status, data });
+        setState({ loading: false, status: data.status, data, error: null });
       })
-      .catch(() => {
-        localStorage.removeItem("participant");
-        setState({ loading: false, status: null, data: null });
+      .catch((err) => {
+        const httpStatus = err.response?.status;
+        const sessionGone = httpStatus === 404 || httpStatus === 410;
+
+        if (sessionGone) {
+
+          localStorage.removeItem("participant");
+          setState({ loading: false, status: null, data: null, error: null });
+          return;
+        }
+
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error: err.isTimeout
+            ? "Connection timed out. Please check your network and try again."
+            : "Could not reach the server. Please check your connection and try again.",
+        }));
       });
   }, []);
 
