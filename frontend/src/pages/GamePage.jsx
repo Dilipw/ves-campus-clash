@@ -8,16 +8,10 @@ import "./game.css";
 
 const ICONS = ["⚡", "🔥", "⭐", "🎯", "💎", "🚀", "❤️", "🌟", "🎓", "🏆"];
 
-// Restored to a short interval on purpose: this is the server's main
-// anti-cheat checkpoint. Each sync gives the backend a timestamped
-// snapshot of matched_pairs/moves/remaining_time to compare against
-// what's ultimately submitted at `complete` — the more checkpoints,
-// the smaller the window for a single fabricated jump to go unnoticed.
-// Combined with level-transition syncs and the beforeunload beacon.
+// Anti-cheat checkpoint interval: server compares periodic snapshots
+// against the final `complete` payload.
 const SYNC_INTERVAL_MS = 5000;
 
-// Tune these to whatever your backend's actual score scale is — they
-// only drive which celebration copy/sound plays, nothing gameplay-related.
 const SCORE_TIERS = { gold: 1500, silver: 800 };
 function getTier(score) {
     if (score >= SCORE_TIERS.gold) return "gold";
@@ -46,6 +40,42 @@ function buildDeck(levelConfig) {
     return deck.map((icon, id) => ({ id, icon, matched: false, isPowerUp: id === powerUpIdx }));
 }
 
+function boardStorageKey(uuid) {
+    return `mm_board_${uuid}`;
+}
+
+function loadStoredBoard(uuid) {
+    if (!uuid) return null;
+    try {
+        const raw = localStorage.getItem(boardStorageKey(uuid));
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function saveStoredBoard(uuid, levelIdx, board) {
+    if (!uuid) return;
+    try {
+        localStorage.setItem(boardStorageKey(uuid), JSON.stringify({ levelIdx, board }));
+    } catch {
+        // storage full/unavailable — worst case the board just won't survive a refresh
+    }
+}
+
+function clearStoredBoard(uuid) {
+    if (!uuid) return;
+    try {
+        localStorage.removeItem(boardStorageKey(uuid));
+    } catch {
+        // ignore
+    }
+}
+
+function countMatched(board) {
+    return board.filter((c) => c.matched).length;
+}
+
 function makeConfetti(count = 26) {
     const colors = ["#f4c661", "#e0a940", "#ff8a5c", "#7dd3c0", "#f6efe0"];
     return Array.from({ length: count }, (_, i) => ({
@@ -58,16 +88,8 @@ function makeConfetti(count = 26) {
     }));
 }
 
-/*
-|--------------------------------------------------------------------------
-| Level structure (pairs / duration / cols per level) is no longer
-| hardcoded here. It's fetched once from GET /game/config, which reads
-| config('game.levels') on the backend — the same source the server
-| uses for scoring/timing validation. This is what closes the drift
-| risk that previously let the frontend's TOTAL_BUDGET (80s) and the
-| backend's timer budget disagree.
-|--------------------------------------------------------------------------
-*/
+// Level structure comes from GET /game/config (config('game.levels') on
+// the backend), so frontend/backend timing and scoring stay in sync.
 export default function GamePage() {
     const [gameConfig, setGameConfig] = useState(null);
     const [configError, setConfigError] = useState(null);
@@ -124,9 +146,6 @@ function GameBoard({ sessionData, gameConfig }) {
     const participant = JSON.parse(localStorage.getItem("participant") || "{}");
     const sessionUuid = participant?.game_session?.uuid;
 
-    // Sourced from GET /game/config — shape: [{ level, pairs, cols, duration }],
-    // same shape the old hardcoded LEVELS array used, so nothing below this
-    // needs to change beyond where these two come from.
     const LEVELS = gameConfig.levels;
     const TOTAL_BUDGET = gameConfig.total_budget_seconds ??
         LEVELS.reduce((sum, l) => sum + l.duration, 0);
@@ -177,11 +196,26 @@ function GameBoard({ sessionData, gameConfig }) {
     const lastSyncRef = useRef(0);
     const gameStartRef = useRef(null);
 
+    // Pairs already "banked" (e.g. from a restored session) before the
+    // current board's own deck was built. The current board always starts
+    // fully unmatched, so completion must be judged against this baseline
+    // plus the current level's pair count — not against a running total
+    // that assumes the visible board already reflects prior progress.
+    const levelBaselineRef = useRef(matchedPairsRef.current);
+
+    const initialPriorLevelsDuration = LEVELS
+        .slice(0, levelIdx)
+        .reduce((sum, l) => sum + l.duration, 0);
+    const initialTimeSpentInLevel = Math.max(
+        0,
+        Math.min(LEVELS[levelIdx].duration, elapsedRef.current - initialPriorLevelsDuration)
+    );
+
     const [display, setDisplay] = useState({
         matchedPairs: matchedPairsRef.current,
         moves: movesRef.current,
         score: scoreRef.current,
-        timeLeftInLevel: LEVELS[levelIdx].duration,
+        timeLeftInLevel: LEVELS[levelIdx].duration - initialTimeSpentInLevel,
     });
 
     const forceRender = () => setDisplay((d) => ({ ...d }));
@@ -238,6 +272,7 @@ function GameBoard({ sessionData, gameConfig }) {
                 remaining_time: currentRemainingBudget(),
                 time_taken: Math.round(elapsedRef.current),
             });
+            clearStoredBoard(sessionUuid);
             const result = res.data?.data?.result || res.data?.result;
             if (result?.score != null) {
                 scoreRef.current = result.score;
@@ -265,9 +300,55 @@ function GameBoard({ sessionData, gameConfig }) {
     }, [sessionUuid, levelIdx, currentRemainingBudget, navigate, refetch]);
 
     function enterBoard() {
-        setBoard(buildDeck(LEVELS[levelIdx]));
+        const expectedSize = LEVELS[levelIdx].pairs * 2;
+        const stored = loadStoredBoard(sessionUuid);
+        const previousLevelsTotal = LEVELS
+            .slice(0, levelIdx)
+            .reduce((sum, l) => sum + l.pairs, 0);
+
+        const hasValidStoredBoard =
+            stored &&
+            stored.levelIdx === levelIdx &&
+            Array.isArray(stored.board) &&
+            stored.board.length === expectedSize;
+
+        const nextBoard = hasValidStoredBoard ? stored.board : buildDeck(LEVELS[levelIdx]);
+        const matchedOnBoard = countMatched(nextBoard);
+
+        if (hasValidStoredBoard) {
+            // The board saved in this browser is the freshest record of what's
+            // actually been matched this level — trust it over the backend's
+            // total, which may not have finished syncing yet (a refresh can
+            // land before the beforeunload beacon is processed server-side).
+            matchedPairsRef.current = previousLevelsTotal + matchedOnBoard;
+            levelBaselineRef.current = previousLevelsTotal;
+        } else {
+            // No local record for this level (new browser/device, or storage
+            // was cleared) — fall back to the backend's count for the pair
+            // total; we just can't show which specific cards were matched.
+            levelBaselineRef.current = Math.max(0, matchedPairsRef.current - matchedOnBoard);
+        }
+
+        saveStoredBoard(sessionUuid, levelIdx, nextBoard);
+        setBoard(nextBoard);
+
         const now = Date.now();
-        levelDeadlineRef.current = now + LEVELS[levelIdx].duration * 1000;
+
+        // On a fresh start elapsedRef is 0, so this just gives the level its
+        // full duration. On a restore, elapsedRef already reflects time spent
+        // in earlier levels + this level, so we subtract that out to resume
+        // the level countdown where it actually left off instead of resetting it.
+        const priorLevelsDuration = LEVELS
+            .slice(0, levelIdx)
+            .reduce((sum, l) => sum + l.duration, 0);
+        const timeSpentInLevel = Math.max(
+            0,
+            Math.min(LEVELS[levelIdx].duration, elapsedRef.current - priorLevelsDuration)
+        );
+        const remainingInLevel = LEVELS[levelIdx].duration - timeSpentInLevel;
+
+        levelDeadlineRef.current = now + remainingInLevel * 1000;
+
         if (gameStartRef.current === null) {
             gameStartRef.current = now - elapsedRef.current * 1000;
         }
@@ -281,6 +362,7 @@ function GameBoard({ sessionData, gameConfig }) {
         primeAudio();
         try {
             await gameApi.start(sessionUuid);
+            clearStoredBoard(sessionUuid);
             lastConfirmedRemainingRef.current = TOTAL_BUDGET;
             elapsedRef.current = 0;
             gameStartRef.current = null;
@@ -396,13 +478,18 @@ function GameBoard({ sessionData, gameConfig }) {
                     if (gotPowerUp) spawnPopup("+5s ⚡");
                     else if (streakRef.current >= 2) spawnPopup(`${streakRef.current}x combo!`);
 
-                    setBoard((prev) =>
-                        prev.map((c) => (c.id === a.id || c.id === b.id ? { ...c, matched: true } : c))
-                    );
+                    setBoard((prev) => {
+                        const updated = prev.map((c) =>
+                            c.id === a.id || c.id === b.id ? { ...c, matched: true } : c
+                        );
+                        saveStoredBoard(sessionUuid, levelIdx, updated);
+                        return updated;
+                    });
 
-                    const cumulativeTarget = LEVELS
-                        .slice(0, levelIdx + 1)
-                        .reduce((sum, l) => sum + l.pairs, 0);
+                    // Completion is judged against this board's own baseline,
+                    // not a cumulative total across all levels — see
+                    // levelBaselineRef above.
+                    const cumulativeTarget = levelBaselineRef.current + LEVELS[levelIdx].pairs;
 
                     if (matchedPairsRef.current === cumulativeTarget) {
                         if (levelIdx < LEVELS.length - 1) {
@@ -410,8 +497,11 @@ function GameBoard({ sessionData, gameConfig }) {
                             if (soundOnRef.current) sfx.levelUp();
                             setBanner(`Level ${nextLevelIdx + 1}`);
                             setTimeout(() => setBanner(null), 1300);
+                            const nextLevelBoard = buildDeck(LEVELS[nextLevelIdx]);
                             setLevelIdx(nextLevelIdx);
-                            setBoard(buildDeck(LEVELS[nextLevelIdx]));
+                            setBoard(nextLevelBoard);
+                            saveStoredBoard(sessionUuid, nextLevelIdx, nextLevelBoard);
+                            levelBaselineRef.current = matchedPairsRef.current;
                             levelDeadlineRef.current = Date.now() + LEVELS[nextLevelIdx].duration * 1000;
                             if (soundOnRef.current) startAmbient(nextLevelIdx);
                             syncProgress({ current_level: nextLevelIdx + 1 });
@@ -470,10 +560,7 @@ function GameBoard({ sessionData, gameConfig }) {
 
     const config = LEVELS[levelIdx];
 
-    const previousLevelsTotal = LEVELS
-        .slice(0, levelIdx)
-        .reduce((sum, l) => sum + l.pairs, 0);
-    const pairsMatchedThisLevel = matchedPairsRef.current - previousLevelsTotal;
+    const pairsMatchedThisLevel = matchedPairsRef.current - levelBaselineRef.current;
     const timePct = Math.max(0, Math.min(100, (display.timeLeftInLevel / config.duration) * 100));
     const isUrgent = display.timeLeftInLevel <= 10;
 
