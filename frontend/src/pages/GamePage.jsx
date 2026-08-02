@@ -88,8 +88,6 @@ function makeConfetti(count = 26) {
     }));
 }
 
-// Level structure comes from GET /game/config (config('game.levels') on
-// the backend), so frontend/backend timing and scoring stay in sync.
 export default function GamePage() {
     const [gameConfig, setGameConfig] = useState(null);
     const [configError, setConfigError] = useState(null);
@@ -196,11 +194,6 @@ function GameBoard({ sessionData, gameConfig }) {
     const lastSyncRef = useRef(0);
     const gameStartRef = useRef(null);
 
-    // Pairs already "banked" (e.g. from a restored session) before the
-    // current board's own deck was built. The current board always starts
-    // fully unmatched, so completion must be judged against this baseline
-    // plus the current level's pair count — not against a running total
-    // that assumes the visible board already reflects prior progress.
     const levelBaselineRef = useRef(matchedPairsRef.current);
 
     const initialPriorLevelsDuration = LEVELS
@@ -316,16 +309,10 @@ function GameBoard({ sessionData, gameConfig }) {
         const matchedOnBoard = countMatched(nextBoard);
 
         if (hasValidStoredBoard) {
-            // The board saved in this browser is the freshest record of what's
-            // actually been matched this level — trust it over the backend's
-            // total, which may not have finished syncing yet (a refresh can
-            // land before the beforeunload beacon is processed server-side).
             matchedPairsRef.current = previousLevelsTotal + matchedOnBoard;
             levelBaselineRef.current = previousLevelsTotal;
         } else {
-            // No local record for this level (new browser/device, or storage
-            // was cleared) — fall back to the backend's count for the pair
-            // total; we just can't show which specific cards were matched.
+         
             levelBaselineRef.current = Math.max(0, matchedPairsRef.current - matchedOnBoard);
         }
 
@@ -334,10 +321,6 @@ function GameBoard({ sessionData, gameConfig }) {
 
         const now = Date.now();
 
-        // On a fresh start elapsedRef is 0, so this just gives the level its
-        // full duration. On a restore, elapsedRef already reflects time spent
-        // in earlier levels + this level, so we subtract that out to resume
-        // the level countdown where it actually left off instead of resetting it.
         const priorLevelsDuration = LEVELS
             .slice(0, levelIdx)
             .reduce((sum, l) => sum + l.duration, 0);
